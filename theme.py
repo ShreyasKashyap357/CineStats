@@ -95,6 +95,7 @@ def inject_css(mode: str = "dark"):
             border-radius: {CARD_BORDER_RADIUS};
             padding: 1rem;
             margin-bottom: 0.75rem;
+            color: {t['text_primary']};
         }}
         .cinestats-card:hover {{
             border-color: {t['primary']};

@@ -78,25 +78,25 @@ pages = {
 
 pg = st.navigation(pages, position="hidden")
 
+# ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
-    # App branding
+    # App branding (reduced padding)
     st.markdown(f"""
-    <div style="text-align:center; padding: 0.5rem 0 0.5rem 0;">
-        <span style="font-size:2rem;">🎬</span>
-        <h2 style="margin:0; color:#F1F5F9;">CineStats</h2>
-        <p style="margin:0; font-size:0.75rem; color:#64748B;">
+    <div style="text-align:center; padding: 0;">
+        <span style="font-size:2rem; line-height: 1;">🎬</span>
+        <h2 style="margin: 0; color:#F1F5F9; font-size: 1.5rem;">CineStats</h2>
+        <p style="margin: 0; font-size:0.7rem; color:#64748B;">
             Global Movie, TV & Animation Analytics
         </p>
     </div>
+    <hr style="margin: 0.75rem 0; border: none; border-top: 1px solid rgba(148, 163, 184, 0.2);" />
     """, unsafe_allow_html=True)
-
-    st.divider()
 
     # Manual page links sequentially under branding
     for p in pages[""]:
         st.page_link(p)
 
-    st.divider()
+    st.markdown("""<hr style="margin: 0.75rem 0; border: none; border-top: 1px solid rgba(148, 163, 184, 0.2);" />""", unsafe_allow_html=True)
 
     # Currency selector
     st.session_state.currency = st.selectbox(
@@ -105,14 +105,31 @@ with st.sidebar:
         index=SUPPORTED_CURRENCIES.index(st.session_state.currency),
     )
 
-    # Theme toggle
-    is_dark = st.toggle(
-        "☀️ / 🌙 Dark Mode",
-        value=(st.session_state.theme_mode == "dark")
-    )
-    new_theme = "dark" if is_dark else "light"
-    if new_theme != st.session_state.theme_mode:
-        st.session_state.theme_mode = new_theme
+    # Theme toggle returned to sidebar
+    is_dark = st.session_state.theme_mode == "dark"
+    theme_text = "☀️ Switch to Light Mode" if is_dark else "🌙 Switch to Dark Mode"
+    if st.button(theme_text, use_container_width=True):
+        new_mode = "light" if is_dark else "dark"
+        st.session_state.theme_mode = new_mode
+        
+        # Override Streamlit's native theme globally
+        import os
+        from theme import DARK, LIGHT
+        t = DARK if new_mode == "dark" else LIGHT
+        
+        config_str = f"""[theme]
+base = "{new_mode}"
+primaryColor = "{t['primary']}"
+backgroundColor = "{t['canvas']}"
+secondaryBackgroundColor = "{t['card']}"
+textColor = "{t['text_primary']}"
+
+[server]
+headless = true
+"""
+        with open(os.path.join(".streamlit", "config.toml"), "w", encoding="utf-8") as f:
+            f.write(config_str)
+            
         st.rerun()
 
     # Version footer
@@ -124,3 +141,5 @@ with st.sidebar:
 
 # Run the selected page
 pg.run()
+
+
