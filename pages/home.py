@@ -31,8 +31,9 @@ def render():
         ("🆕", "What's New"),
     ]
     for col, (icon, label) in zip(cols, sections):
+        anchor_id = label.lower().replace(' ', '-').replace("'", "")
         col.markdown(
-            f"<a href='#{label.lower().replace(' ', '-')}' "
+            f"<a href='#{anchor_id}' "
             f"style='text-decoration:none;color:#3B82F6;'>"
             f"{icon} {label}</a>",
             unsafe_allow_html=True,
@@ -43,7 +44,7 @@ def render():
     conn = get_connection()
     try:
         # ── Currently in Theatres ────────────────────────────────────────
-        st.markdown("## 🎬 Currently in Theatres", anchor="in-theatres")
+        st.markdown("<h2 id='in-theatres'>🎬 Currently in Theatres</h2>", unsafe_allow_html=True)
         movies = pd.read_sql(
             """SELECT title_display, worldwide_gross_usd, india_net_cr,
                       verdict, release_date, days_in_release, tmdb_id
@@ -61,7 +62,7 @@ def render():
         st.divider()
 
         # ── Currently Airing ─────────────────────────────────────────────
-        st.markdown("## 📺 Currently Airing", anchor="airing")
+        st.markdown("<h2 id='airing'>📺 Currently Airing</h2>", unsafe_allow_html=True)
         for ctype, label in CONTENT_TYPE_LABELS.items():
             if ctype == "movie":
                 continue
@@ -78,31 +79,31 @@ def render():
         st.divider()
 
         # ── Trending This Week ───────────────────────────────────────────
-        st.markdown("## 🔥 Trending This Week", anchor="trending")
+        st.markdown("<h2 id='trending'>🔥 Trending This Week</h2>", unsafe_allow_html=True)
         st.info("Trending data will populate from TMDB and MAL trending endpoints.")
 
         st.divider()
 
         # ── Daily / Weekend Movers ───────────────────────────────────────
-        st.markdown("## 📈 Daily / Weekend Movers", anchor="movers")
+        st.markdown("<h2 id='movers'>📈 Daily / Weekend Movers</h2>", unsafe_allow_html=True)
         st.info("Movers will display top 5 gainers and losers among currently running films.")
 
         st.divider()
 
         # ── On This Day ──────────────────────────────────────────────────
-        st.markdown("## 📅 On This Day", anchor="on-this-day")
+        st.markdown("<h2 id='on-this-day'>📅 On This Day</h2>", unsafe_allow_html=True)
         st.info("Shows releases and airings on this date in history.")
 
         st.divider()
 
         # ── Top of Year ──────────────────────────────────────────────────
-        st.markdown("## 🏆 Top of Year", anchor="top-of-year")
+        st.markdown("<h2 id='top-of-year'>🏆 Top of Year</h2>", unsafe_allow_html=True)
         st.info("Year-to-date top performers by content type.")
 
         st.divider()
 
         # ── What's New ───────────────────────────────────────────────────
-        st.markdown("## 🆕 What's New", anchor="what's-new")
+        st.markdown("<h2 id='whats-new'>🆕 What's New</h2>", unsafe_allow_html=True)
         recent = get_recently_added(conn, limit=10)
         if recent:
             for item in recent:

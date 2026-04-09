@@ -59,11 +59,29 @@ if not st.session_state.db_initialized:
 st.markdown(inject_css(st.session_state.theme_mode), unsafe_allow_html=True)
 
 
-# ── Sidebar ──────────────────────────────────────────────────────────────────
+# ── Navigation & Sidebar ─────────────────────────────────────────────────────
+# Navigation setup
+from pages import home, movies, tv_series, animated_shows, compare, on_this_day, search, settings
+
+pages = {
+    "": [
+        st.Page(home.render, title="Home", icon="🏠", url_path="home", default=True),
+        st.Page(movies.render, title="Movies", icon="🎬", url_path="movies"),
+        st.Page(tv_series.render, title="TV Series", icon="📺", url_path="tv_series"),
+        st.Page(animated_shows.render, title="Animated Shows", icon="✨", url_path="animated_shows"),
+        st.Page(compare.render, title="Compare", icon="⚖️", url_path="compare"),
+        st.Page(on_this_day.render, title="On This Day", icon="📅", url_path="on_this_day"),
+        st.Page(search.render, title="Search", icon="🔍", url_path="search"),
+        st.Page(settings.render, title="Settings", icon="⚙️", url_path="settings"),
+    ]
+}
+
+pg = st.navigation(pages, position="hidden")
+
 with st.sidebar:
     # App branding
     st.markdown(f"""
-    <div style="text-align:center; padding: 0.5rem 0 1rem 0;">
+    <div style="text-align:center; padding: 0.5rem 0 0.5rem 0;">
         <span style="font-size:2rem;">🎬</span>
         <h2 style="margin:0; color:#F1F5F9;">CineStats</h2>
         <p style="margin:0; font-size:0.75rem; color:#64748B;">
@@ -74,26 +92,9 @@ with st.sidebar:
 
     st.divider()
 
-    # Navigation
-    pages = [
-        "🏠 Home",
-        "🎬 Movies",
-        "📺 TV Series",
-        "✨ Animated Shows",
-        "⚖️ Compare",
-        "📅 On This Day",
-        "🔍 Search",
-        "⚙️ Settings",
-    ]
-
-    selected = st.radio(
-        "Navigate",
-        pages,
-        index=pages.index(st.session_state.current_page)
-            if st.session_state.current_page in pages else 0,
-        label_visibility="collapsed",
-    )
-    st.session_state.current_page = selected
+    # Manual page links sequentially under branding
+    for p in pages[""]:
+        st.page_link(p)
 
     st.divider()
 
@@ -105,13 +106,13 @@ with st.sidebar:
     )
 
     # Theme toggle
-    theme = st.selectbox(
-        "🎨 Theme",
-        ["dark", "light"],
-        index=0 if st.session_state.theme_mode == "dark" else 1,
+    is_dark = st.toggle(
+        "☀️ / 🌙 Dark Mode",
+        value=(st.session_state.theme_mode == "dark")
     )
-    if theme != st.session_state.theme_mode:
-        st.session_state.theme_mode = theme
+    new_theme = "dark" if is_dark else "light"
+    if new_theme != st.session_state.theme_mode:
+        st.session_state.theme_mode = new_theme
         st.rerun()
 
     # Version footer
@@ -121,25 +122,5 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-
-# ── Page Routing ─────────────────────────────────────────────────────────────
-page_map = {
-    "🏠 Home":           "pages.home",
-    "🎬 Movies":         "pages.movies",
-    "📺 TV Series":      "pages.tv_series",
-    "✨ Animated Shows":  "pages.animated_shows",
-    "⚖️ Compare":        "pages.compare",
-    "📅 On This Day":    "pages.on_this_day",
-    "🔍 Search":         "pages.search",
-    "⚙️ Settings":       "pages.settings",
-}
-
-# Import and run the selected page
-page_module = page_map.get(selected, "pages.home")
-try:
-    import importlib
-    mod = importlib.import_module(page_module)
-    mod.render()
-except Exception as e:
-    st.error(f"Error loading page: {e}")
-    st.exception(e)
+# Run the selected page
+pg.run()
