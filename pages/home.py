@@ -1,21 +1,17 @@
 """
 CineStats — Home Page
-Section 4 of the v1.0 specification.
-
-Sections:
-  - Jump-to-section anchor nav
-  - Currently in Theatres
-  - Currently Airing (split by content type)
-  - Trending This Week
-  - Daily / Weekend Movers
-  - On This Day preview
-  - Top of Year
-  - What's New
+Dashboard overview with live sections wired to backend logic.
 """
 import streamlit as st
 import pandas as pd
+from datetime import date, timedelta
 from src.db.init_db import get_connection
 from src.db.log_helpers import get_recently_added
+from src.logic.mover_calculator import MoverCalculator
+from components import (
+    stat_card, movie_card, verdict_badge, empty_state,
+    section_header, table_has_data, fmt_currency,
+)
 from constants import get_data_cutoff, CONTENT_TYPE_LABELS
 
 
@@ -44,66 +40,154 @@ def render():
     conn = get_connection()
     try:
         # ── Currently in Theatres ────────────────────────────────────────
-        st.markdown("<h2 id='in-theatres'>🎬 Currently in Theatres</h2>", unsafe_allow_html=True)
-        movies = pd.read_sql(
-            """SELECT title_display, worldwide_gross_usd, india_net_cr,
-                      verdict, release_date, days_in_release, tmdb_id
-               FROM movies
-               WHERE days_in_release IS NOT NULL AND days_in_release <= 60
-               ORDER BY worldwide_gross_usd DESC NULLS LAST
-               LIMIT 12""",
-            conn) if _table_has_data(conn, "movies") else pd.DataFrame()
-
-        if not movies.empty:
-            _render_movie_cards(movies)
+        section_header("🎬 Currently in Theatres", "in-theatres")
+        if table_has_data(conn, "movies"):
+            movies = pd.read_sql(
+                """SELECT title_display, worldwide_gross_usd, india_net_cr,
+                          verdict, release_date, days_in_release, tmdb_id
+                   FROM movies
+                   WHERE days_in_release IS NOT NULL AND days_in_release <= 60
+                   ORDER BY worldwide_gross_usd DESC NULLS LAST
+                   LIMIT 12""",
+                conn)
+            if not movies.empty:
+                _render_movie_cards(movies)
+            else:
+                st.info("No movies currently in theatres.")
         else:
-            st.info("No movies currently in theatres. Data will appear after the first scrape.")
+            empty_state("No movie data yet. Scrape from Settings to populate.", "🎬")
 
         st.divider()
 
         # ── Currently Airing ─────────────────────────────────────────────
-        st.markdown("<h2 id='airing'>📺 Currently Airing</h2>", unsafe_allow_html=True)
+        section_header("📺 Currently Airing", "airing")
+        has_airing = False
+
         for ctype, label in CONTENT_TYPE_LABELS.items():
             if ctype == "movie":
                 continue
-            table = "anime" if ctype == "anime" else "tv_series"
-            if _table_has_data(conn, table):
+            tbl = "anime" if ctype == "anime" else "tv_series"
+            if table_has_data(conn, tbl):
+                status_col = "status"
+                title_col = "title_english" if ctype == "anime" else "title_display"
+                rating_col = "mal_score" if ctype == "anime" else "avg_rating"
+
                 airing = pd.read_sql(
-                    f"SELECT * FROM {table} WHERE status='Ongoing' LIMIT 8", conn)
+                    f"SELECT {title_col} as title, genre, {rating_col} as rating "
+                    f"FROM {tbl} WHERE LOWER(status) IN ('running', 'ongoing', 'currently airing') "
+                    f"LIMIT 8",
+                    conn)
                 if not airing.empty:
+                    has_airing = True
                     st.markdown(f"### {label}")
-                    st.dataframe(airing[["title_display", "genre", "avg_rating" if "avg_rating" in airing.columns else "mal_score"]].head(8),
-                                 use_container_width=True, hide_index=True)
-        st.info("Currently airing shows will appear after TV/Anime data is fetched.")
+                    st.dataframe(airing, use_container_width=True, hide_index=True)
+
+        if not has_airing:
+            st.info("Currently airing shows will appear after TV/Anime data is fetched.")
 
         st.divider()
 
         # ── Trending This Week ───────────────────────────────────────────
-        st.markdown("<h2 id='trending'>🔥 Trending This Week</h2>", unsafe_allow_html=True)
-        st.info("Trending data will populate from TMDB and MAL trending endpoints.")
+        section_header("🔥 Trending This Week", "trending")
+        if table_has_data(conn, "movies"):
+            trending = pd.read_sql(
+                "SELECT title_display, worldwide_gross_usd, verdict "
+                "FROM movies ORDER BY last_updated DESC LIMIT 10",
+                conn)
+            if not trending.empty:
+                st.dataframe(trending, use_container_width=True, hide_index=True)
+            else:
+                st.info("No trending data available.")
+        else:
+            st.info("Trending data will populate from TMDB and MAL trending endpoints.")
 
         st.divider()
 
         # ── Daily / Weekend Movers ───────────────────────────────────────
-        st.markdown("<h2 id='movers'>📈 Daily / Weekend Movers</h2>", unsafe_allow_html=True)
-        st.info("Movers will display top 5 gainers and losers among currently running films.")
+        section_header("📈 Daily / Weekend Movers", "movers")
+        if table_has_data(conn, "daily_performance"):
+            today_str = date.today().strftime("%Y-%m-%d")
+            yesterday_str = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+            result = MoverCalculator.get_top_gainers_and_losers(conn, today_str)
+            if result['gainers'].empty and result['losers'].empty:
+                # Try yesterday
+                result = MoverCalculator.get_top_gainers_and_losers(conn, yesterday_str)
+
+            mc1, mc2 = st.columns(2)
+            with mc1:
+                st.markdown("#### 📈 Top Gainers")
+                if not result['gainers'].empty:
+                    for _, row in result['gainers'].iterrows():
+                        pct = row['pct_change']
+                        st.markdown(
+                            f"- **{row['title_display']}** "
+                            f"<span class='trend-up'>+{pct:.1f}%</span>",
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.caption("No gainers today.")
+
+            with mc2:
+                st.markdown("#### 📉 Top Losers")
+                if not result['losers'].empty:
+                    for _, row in result['losers'].iterrows():
+                        pct = row['pct_change']
+                        st.markdown(
+                            f"- **{row['title_display']}** "
+                            f"<span class='trend-down'>{pct:.1f}%</span>",
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.caption("No losers today.")
+        else:
+            st.info("Movers will display after daily performance data is scraped.")
 
         st.divider()
 
         # ── On This Day ──────────────────────────────────────────────────
-        st.markdown("<h2 id='on-this-day'>📅 On This Day</h2>", unsafe_allow_html=True)
-        st.info("Shows releases and airings on this date in history.")
+        section_header("📅 On This Day", "on-this-day")
+        month_day = date.today().strftime("%m-%d")
+
+        otd_items = []
+        if table_has_data(conn, "movies"):
+            otd_movies = pd.read_sql(
+                "SELECT title_display, release_date, 'Movie' as type "
+                "FROM movies WHERE strftime('%m-%d', release_date) = ? "
+                "ORDER BY release_date DESC LIMIT 5",
+                conn, params=(month_day,))
+            if not otd_movies.empty:
+                otd_items.append(otd_movies)
+
+        if otd_items:
+            combined = pd.concat(otd_items, ignore_index=True)
+            st.dataframe(combined, use_container_width=True, hide_index=True)
+            st.page_link("pages/on_this_day.py", label="See all →", icon="📅")
+        else:
+            st.info("No historical releases on this date.")
 
         st.divider()
 
         # ── Top of Year ──────────────────────────────────────────────────
-        st.markdown("<h2 id='top-of-year'>🏆 Top of Year</h2>", unsafe_allow_html=True)
-        st.info("Year-to-date top performers by content type.")
+        section_header("🏆 Top of Year", "top-of-year")
+        current_year = date.today().year
+        if table_has_data(conn, "movies"):
+            top_year = pd.read_sql(
+                "SELECT title_display, worldwide_gross_usd, india_net_cr, verdict "
+                "FROM movies WHERE strftime('%Y', release_date) = ? "
+                "ORDER BY worldwide_gross_usd DESC NULLS LAST LIMIT 10",
+                conn, params=(str(current_year),))
+            if not top_year.empty:
+                st.dataframe(top_year, use_container_width=True, hide_index=True)
+            else:
+                st.info(f"No movies from {current_year} in the database yet.")
+        else:
+            st.info("Year-to-date top performers will appear after data is scraped.")
 
         st.divider()
 
         # ── What's New ───────────────────────────────────────────────────
-        st.markdown("<h2 id='whats-new'>🆕 What's New</h2>", unsafe_allow_html=True)
+        section_header("🆕 What's New", "whats-new")
         recent = get_recently_added(conn, limit=10)
         if recent:
             for item in recent:
@@ -115,37 +199,14 @@ def render():
         conn.close()
 
 
-def _table_has_data(conn, table: str) -> bool:
-    """Check if a table has any rows."""
-    try:
-        row = conn.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone()
-        return row is not None
-    except Exception:
-        return False
-
-
 def _render_movie_cards(df: pd.DataFrame):
     """Render movie poster cards in a grid."""
     cols = st.columns(4)
     for idx, (_, movie) in enumerate(df.head(12).iterrows()):
         with cols[idx % 4]:
-            title = movie.get("title_display", "Unknown")
-            gross = movie.get("worldwide_gross_usd")
-            verdict = movie.get("verdict", "")
-            india_net = movie.get("india_net_cr")
-
-            st.markdown(f"""
-            <div class="cinestats-card">
-                <h4 style="margin:0 0 0.3rem 0; font-size:0.9rem;">{title}</h4>
-                <p style="margin:0; font-size:0.75rem; color:#94A3B8;">
-                    {'${:,.0f}'.format(gross) + ' WW' if gross else 'N/A'}
-                    {' · ₹' + '{:.1f}'.format(india_net) + ' Cr' if india_net else ''}
-                </p>
-                {f'<span class="verdict-badge" style="background:{_verdict_color(verdict)};">{verdict}</span>' if verdict else ''}
-            </div>
-            """, unsafe_allow_html=True)
-
-
-def _verdict_color(verdict: str) -> str:
-    from theme import VERDICT_COLORS
-    return VERDICT_COLORS.get(verdict, "#64748B")
+            movie_card(
+                title=movie.get("title_display", "Unknown"),
+                gross_usd=movie.get("worldwide_gross_usd"),
+                india_net_cr=movie.get("india_net_cr"),
+                verdict=movie.get("verdict", ""),
+            )
