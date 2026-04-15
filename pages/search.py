@@ -6,8 +6,10 @@ import streamlit as st
 import pandas as pd
 from src.db.init_db import get_connection
 from components import paginated_dataframe, empty_state, content_type_badge, table_has_data
+from components.error_boundary import error_boundary
 
 
+@error_boundary
 def render():
     st.markdown("# 🔍 Search")
     st.caption("Search across all content types.")

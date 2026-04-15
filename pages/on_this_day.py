@@ -7,8 +7,10 @@ import pandas as pd
 from datetime import date
 from src.db.init_db import get_connection
 from components import empty_state, section_header, table_has_data, fmt_currency
+from components.error_boundary import error_boundary
 
 
+@error_boundary
 def render():
     st.markdown("# 📅 On This Day")
     st.caption("Discover what released or aired on any date in history.")

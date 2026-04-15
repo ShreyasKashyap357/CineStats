@@ -12,8 +12,10 @@ from constants import (
     SUPPORTED_CURRENCIES, DEFAULT_CURRENCY, PAGE_SIZES,
     CONTENT_TYPES, CONTENT_TYPE_LABELS, APP_NAME, APP_VERSION,
 )
+from components.error_boundary import error_boundary
 
 
+@error_boundary
 def render():
     st.markdown("# ⚙️ Settings")
     st.caption("Manage preferences, data sources, and application state.")

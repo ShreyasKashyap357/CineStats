@@ -9,8 +9,10 @@ from components import (
     paginated_dataframe, stat_card, empty_state, csv_download,
     section_header, table_has_data, content_type_badge,
 )
+from components.error_boundary import error_boundary
 
 
+@error_boundary
 def render():
     st.markdown("# 📺 TV Series")
     st.caption("Browse TV series data from TVMaze and Wikipedia.")

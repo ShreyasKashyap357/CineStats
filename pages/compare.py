@@ -8,8 +8,10 @@ import plotly.graph_objects as go
 from src.db.init_db import get_connection
 from components import stat_card, empty_state, section_header, table_has_data, fmt_currency
 from theme import get_plotly_layout
+from components.error_boundary import error_boundary
 
 
+@error_boundary
 def render():
     st.markdown("# ⚖️ Compare")
     st.caption("Side-by-side performance comparisons.")

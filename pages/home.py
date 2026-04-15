@@ -13,8 +13,10 @@ from components import (
     section_header, table_has_data, fmt_currency,
 )
 from constants import get_data_cutoff, CONTENT_TYPE_LABELS
+from components.error_boundary import error_boundary
 
 
+@error_boundary
 def render():
     st.markdown("# 🏠 Home")
     st.caption(f"Data current as of {get_data_cutoff()}")

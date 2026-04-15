@@ -14,8 +14,10 @@ from components import (
 )
 from theme import get_plotly_layout
 from constants import VERDICT_ORDER
+from components.error_boundary import error_boundary
 
 
+@error_boundary
 def render():
     st.markdown("# 🎬 Movies")
     st.caption("Browse box office data from BOM and Sacnilk.")
@@ -101,7 +103,18 @@ def render():
                         verdict=row.get("verdict", ""),
                     )
         else:
-            csv_download(df, "cinestats_movies.csv")
+            ec1, ec2 = st.columns([1, 1])
+            with ec1:
+                csv_download(df, "cinestats_movies.csv")
+            with ec2:
+                try:
+                    from src.logic.pdf_report_builder import generate_movie_report
+                    pdf_bytes = generate_movie_report(df.to_dict('records'))
+                    st.download_button("📄 Export PDF", pdf_bytes,
+                                       file_name="cinestats_movies.pdf",
+                                       mime="application/pdf")
+                except Exception:
+                    pass  # PDF deps may not be installed
             paginated_dataframe(df, "movies")
 
         # ── Movie Detail (expandable) ────────────────────────────────────

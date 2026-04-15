@@ -9,8 +9,10 @@ from components import (
     paginated_dataframe, stat_card, empty_state, csv_download,
     section_header, table_has_data,
 )
+from components.error_boundary import error_boundary
 
 
+@error_boundary
 def render():
     st.markdown("# ✨ Animated Shows")
     st.caption("Anime, Western Animation, and Cartoons — all in one place.")
