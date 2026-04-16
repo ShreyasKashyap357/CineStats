@@ -255,50 +255,59 @@ def _run_scraper(conn, source_module: str, display_name: str):
     """Attempt to run a scraper/client. Logs the result."""
     try:
         if source_module == "bom_scraper":
-            from src.scrapers.bom_scraper import BOMScraper
+            from src.scrapers.bom_scraper import scrape_daily_chart, scrape_yearly_chart
             with st.spinner(f"Fetching from {display_name}..."):
-                scraper = BOMScraper(conn)
-                scraper.scrape_and_store()
+                daily = scrape_daily_chart()
+                yearly = scrape_yearly_chart()
+                count = len(daily) + len(yearly)
+                # Store into movies table
+                _upsert_movies_from_df(conn, daily)
+                _upsert_movies_from_df(conn, yearly)
+                st.info(f"Fetched {len(daily)} daily + {len(yearly)} yearly entries.")
+
         elif source_module == "sacnilk_scraper":
-            from src.scrapers.sacnilk_scraper import SacnilkScraper
+            from src.scrapers.sacnilk_scraper import scrape_currently_running
             with st.spinner(f"Fetching from {display_name}..."):
-                scraper = SacnilkScraper(conn)
-                scraper.scrape_and_store()
+                df = scrape_currently_running()
+                _upsert_movies_from_df(conn, df)
+                st.info(f"Fetched {len(df)} Indian movies.")
+
         elif source_module == "tmdb_client":
-            from src.api.tmdb_client import TMDBClient
+            from src.clients.tmdb_client import get_trending_movies, get_movie_detail
             with st.spinner(f"Enriching via {display_name}..."):
-                client = TMDBClient()
-                client.enrich_movies(conn)
+                trending = get_trending_movies("week")
+                st.info(f"Fetched {len(trending)} trending movies from TMDB.")
+
         elif source_module == "tvmaze_client":
-            from src.api.tvmaze_client import TVMazeClient
+            from src.clients.tvmaze_client import search_tv_series
             with st.spinner(f"Fetching from {display_name}..."):
-                client = TVMazeClient()
-                client.fetch_and_store(conn)
+                st.info("TVMaze requires a search query. Use the search page to find specific shows.")
+
         elif source_module == "wikipedia_tv_scraper":
-            from src.scrapers.wikipedia_tv_scraper import WikipediaTVScraper
+            from src.scrapers.wikipedia_tv_scraper import scrape_viewership_data
             with st.spinner(f"Scraping {display_name}..."):
-                scraper = WikipediaTVScraper()
-                scraper.scrape_and_store(conn)
+                st.info("Wikipedia scraper requires a specific URL. Use the TV Series detail page.")
+
         elif source_module == "jikan_client":
-            from src.api.jikan_client import JikanClient
+            from src.clients.jikan_client import search_anime
             with st.spinner(f"Fetching from {display_name}..."):
-                client = JikanClient()
-                client.fetch_and_store(conn)
+                st.info("Jikan requires a search query. Use the search page to find specific anime.")
+
         elif source_module == "anilist_client":
-            from src.api.anilist_client import AniListClient
+            from src.clients.anilist_client import search_anime
             with st.spinner(f"Fetching from {display_name}..."):
-                client = AniListClient()
-                client.fetch_and_store(conn)
+                st.info("AniList requires a search query. Use the search page to find specific anime.")
+
         elif source_module == "exchange_rate_client":
-            from src.api.exchange_rate_client import ExchangeRateClient
+            from src.clients.exchange_rate_client import fetch_rates
             with st.spinner("Refreshing exchange rates..."):
-                client = ExchangeRateClient()
-                rates = client.fetch_latest()
+                rates = fetch_rates()
                 st.session_state.exchange_rates = rates
+                st.info(f"Loaded {len(rates)} exchange rates.")
 
         log_event(conn, "INFO", "scrape", source_module, display_name,
-                  f"Successfully fetched data from {display_name}")
-        st.success(f"✅ {display_name} data fetched successfully!")
+                  f"Successfully ran {display_name}")
+        st.success(f"✅ {display_name} completed successfully!")
 
     except ImportError as e:
         st.warning(f"⚠️ Module not found: {e}. The {display_name} client may not be fully implemented yet.")
@@ -308,3 +317,41 @@ def _run_scraper(conn, source_module: str, display_name: str):
         st.error(f"❌ Error fetching from {display_name}: {e}")
         log_event(conn, "ERROR", "error", source_module, display_name,
                   str(e), success=0)
+
+
+def _upsert_movies_from_df(conn, df):
+    """Insert or update movies table from a scraped DataFrame."""
+    if df is None or df.empty:
+        return
+    for _, row in df.iterrows():
+        data = row.to_dict()
+        title_norm = data.get("title_normalized")
+        if not title_norm:
+            continue
+        # Check if exists
+        existing = conn.execute(
+            "SELECT id FROM movies WHERE title_normalized = ?", (title_norm,)
+        ).fetchone()
+        if existing:
+            # Update non-null fields
+            updates = []
+            params = []
+            for col in ["worldwide_gross_usd", "domestic_gross_usd", "india_net_cr",
+                         "opening_weekend_usd", "verdict", "release_date", "days_in_release"]:
+                val = data.get(col)
+                if val is not None:
+                    updates.append(f"{col} = ?")
+                    params.append(val)
+            if updates:
+                params.append(existing[0])
+                conn.execute(f"UPDATE movies SET {', '.join(updates)} WHERE id = ?", params)
+        else:
+            conn.execute(
+                """INSERT INTO movies (title_display, title_normalized, source,
+                   worldwide_gross_usd, india_net_cr, release_date, verdict)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (data.get("title_display"), title_norm, data.get("source", "unknown"),
+                 data.get("worldwide_gross_usd"), data.get("india_net_cr"),
+                 data.get("release_date"), data.get("verdict"))
+            )
+    conn.commit()
