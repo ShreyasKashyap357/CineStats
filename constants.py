@@ -97,3 +97,16 @@ CLASH_DATE_TOLERANCE_DAYS = 1   # ±1 day for release date matching
 
 # ── Movers ───────────────────────────────────────────────────────────────────
 MOVERS_TOP_N = 10                # top 5 gainers + top 5 losers
+
+# ── On This Day ─────────────────────────────────────────────────────────────
+OTD_DEFAULT_LIMIT = 10           # default number of entries shown on "On This Day"
+
+# ── Movie Leaderboard ───────────────────────────────────────────────────────
+# Each entry: (label, country_filter_value_for_origin_country_column)
+# "Global" means no country filter — just top by worldwide_gross_usd
+MOVIE_LEADERBOARD_COUNTRIES = [
+    ("🌍 Global", None),
+    ("🇮🇳 India", "IN"),
+    ("🇺🇸 United States", "US"),
+]
+MOVIE_LEADERBOARD_TOP_N = 10

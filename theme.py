@@ -89,6 +89,9 @@ def inject_css(mode: str = "dark"):
     t = DARK if mode == "dark" else LIGHT
     return f"""
     <style>
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{
+            overscroll-behavior: none !important;
+        }}
         .cinestats-card {{
             background: {t['card']};
             border: {CARD_BORDER_WIDTH} solid {t['card_border']};

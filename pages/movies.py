@@ -89,6 +89,34 @@ def render():
 
         st.divider()
 
+        # ── Country Leaderboards ─────────────────────────────────────────
+        section_header("🏆 Top Movies by Region")
+        from constants import MOVIE_LEADERBOARD_COUNTRIES, MOVIE_LEADERBOARD_TOP_N
+        top_n = st.session_state.get("leaderboard_top_n", MOVIE_LEADERBOARD_TOP_N)
+        lb_countries = MOVIE_LEADERBOARD_COUNTRIES
+
+        lb_tabs = st.tabs([label for label, _ in lb_countries])
+        for tab, (label, country_code) in zip(lb_tabs, lb_countries):
+            with tab:
+                if country_code is None:
+                    lb_df = pd.read_sql(
+                        "SELECT title_display, release_date, worldwide_gross_usd, india_net_cr, verdict, origin_country "
+                        "FROM movies ORDER BY worldwide_gross_usd DESC NULLS LAST LIMIT ?",
+                        conn, params=(top_n,))
+                else:
+                    lb_df = pd.read_sql(
+                        "SELECT title_display, release_date, worldwide_gross_usd, india_net_cr, verdict, origin_country "
+                        "FROM movies WHERE origin_country = ? "
+                        "ORDER BY worldwide_gross_usd DESC NULLS LAST LIMIT ?",
+                        conn, params=(country_code, top_n))
+
+                if not lb_df.empty:
+                    st.dataframe(lb_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info(f"No movies found for {label}.")
+
+        st.divider()
+
         # ── View Toggle ──────────────────────────────────────────────────
         view_mode = st.radio("View", ["📊 Table", "🃏 Cards"], horizontal=True, key="mov_view", label_visibility="collapsed")
 
