@@ -40,38 +40,67 @@ def content_type_badge(ctype: str, label: str = None) -> str:
 def movie_card(title: str, gross_usd=None, india_net_cr=None,
                verdict: str = "", poster_url: str = None, tmdb_id=None):
     """Render a single movie card with poster fallback."""
+    import math
     poster_html = ""
-    if poster_url:
+    if poster_url and isinstance(poster_url, str) and poster_url.startswith("http"):
         poster_html = f'<img src="{poster_url}" style="width:100%; border-radius:6px 6px 0 0; aspect-ratio:2/3; object-fit:cover;" />'
     else:
-        poster_html = '<div class="poster-fallback">No Poster</div>'
+        poster_html = '<div class="poster-fallback" style="height:300px; display:flex; align-items:center; justify-content:center; background:#1e293b; color:#64748b; border-radius:6px 6px 0 0;">No Poster</div>'
 
-    gross_str = '${:,.0f}'.format(gross_usd) + " WW" if gross_usd else "N/A"
-    india_str = f" · ₹{india_net_cr:.1f} Cr" if india_net_cr else ""
+    gross_str = ""
+    if gross_usd and not (isinstance(gross_usd, float) and math.isnan(gross_usd)):
+        gross_str = '${:,.0f} WW'.format(gross_usd)
+        # Convert to INR too based on ~83 conversion rate roughly just to satisfy user, or just show USD
+        inr_val = gross_usd * 83.0 / 10000000 
+        gross_str += f" (₹{inr_val:.1f} Cr)"
+    else:
+        gross_str = "N/A"
 
-    st.markdown(f"""
-    <div class="cinestats-card" style="padding:0;">
+    india_str = ""
+    if india_net_cr and not (isinstance(india_net_cr, float) and math.isnan(india_net_cr)):
+        india_str = f" · ₹{india_net_cr:.1f} Cr"
+
+    verdict_html = verdict_badge(verdict) if verdict and isinstance(verdict, str) and verdict.lower() != 'nan' else ""
+
+    html = f"""
+    <div class="cinestats-card" style="padding:0; overflow:hidden;">
         {poster_html}
         <div style="padding:0.6rem;">
-            <h4 style="margin:0 0 0.25rem 0; font-size:0.85rem;">{title}</h4>
-            <p style="margin:0; font-size:0.7rem; color:#94A3B8;">{gross_str}{india_str}</p>
-            {verdict_badge(verdict)}
+            <h4 style="margin:0 0 0.25rem 0; font-size:1rem;">{title}</h4>
+            <p style="margin:0 0 0.5rem 0; font-size:0.8rem; color:#94A3B8;">{gross_str}{india_str}</p>
+            {verdict_html}
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # ── Paginated Table ──────────────────────────────────────────────────────────
 def paginated_dataframe(df: pd.DataFrame, key: str, page_size: int = None):
-    """Render a DataFrame with Previous / Next pagination controls."""
+    """Render a formatted DataFrame with Previous / Next pagination controls."""
     if df.empty:
         st.info("No data to display.")
         return
 
+    # Create a nice display copy
+    display_df = df.copy()
+    
+    # Format common numeric/currency columns
+    numeric_cols = [c for c in display_df.columns if "usd" in c.lower() or "cr" in c.lower() or "gross" in c.lower()]
+    for col in numeric_cols:
+        if pd.api.types.is_numeric_dtype(display_df[col]):
+            display_df[col] = display_df[col].apply(lambda x: f"{x:,.0f}" if pd.notna(x) else "")
+            
+    # Clean up column names for display
+    display_df.columns = [c.replace("_usd", "").replace("_cr", "").replace("_", " ").title() for c in display_df.columns]
+    
+    # Fill Nones/NaNs
+    display_df = display_df.fillna("—")
+
     if page_size is None:
         page_size = st.session_state.get("page_size", 24)
 
-    total = len(df)
+    total = len(display_df)
     total_pages = max(1, (total + page_size - 1) // page_size)
 
     page_key = f"page_{key}"
@@ -82,7 +111,7 @@ def paginated_dataframe(df: pd.DataFrame, key: str, page_size: int = None):
     start = current_page * page_size
     end = min(start + page_size, total)
 
-    st.dataframe(df.iloc[start:end], use_container_width=True, hide_index=True)
+    st.dataframe(display_df.iloc[start:end], use_container_width=True, hide_index=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col1:

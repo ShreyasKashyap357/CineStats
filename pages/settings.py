@@ -111,26 +111,7 @@ def render():
                     _run_scraper(conn, "tmdb_client", "TMDB")
 
             st.divider()
-            st.markdown("### 📺 TV Series")
-            st1, st2 = st.columns(2)
-            with st1:
-                if st.button("📡 Fetch from TVMaze", use_container_width=True, key="scrape_tvmaze"):
-                    _run_scraper(conn, "tvmaze_client", "TVMaze")
-            with st2:
-                if st.button("📰 Scrape Wikipedia Viewership", use_container_width=True, key="scrape_wiki"):
-                    _run_scraper(conn, "wikipedia_tv_scraper", "Wikipedia TV")
 
-            st.divider()
-            st.markdown("### 🎌 Anime")
-            sa1, sa2 = st.columns(2)
-            with sa1:
-                if st.button("🔵 Fetch from Jikan (MAL)", use_container_width=True, key="scrape_jikan"):
-                    _run_scraper(conn, "jikan_client", "Jikan (MAL)")
-            with sa2:
-                if st.button("🟣 Fetch from AniList", use_container_width=True, key="scrape_anilist"):
-                    _run_scraper(conn, "anilist_client", "AniList")
-
-            st.divider()
             st.markdown("### 💱 Utilities")
             if st.button("🔄 Refresh Exchange Rates", use_container_width=True, key="scrape_fx"):
                 _run_scraper(conn, "exchange_rate_client", "Exchange Rates")

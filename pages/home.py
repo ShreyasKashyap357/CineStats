@@ -186,16 +186,6 @@ def render():
         else:
             st.info("Year-to-date top performers will appear after data is scraped.")
 
-        st.divider()
-
-        # ── What's New ───────────────────────────────────────────────────
-        section_header("🆕 What's New", "whats-new")
-        recent = get_recently_added(conn, limit=10)
-        if recent:
-            for item in recent:
-                st.markdown(f"- **{item['entity_key']}** from `{item['source']}` ({item['timestamp'][:10]})")
-        else:
-            st.info("Recent activity will appear after data is fetched.")
 
     finally:
         conn.close()

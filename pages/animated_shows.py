@@ -99,12 +99,23 @@ def _render_anime_tab(conn):
 
     # Detail view
     st.divider()
-    section_header("🔎 Anime Detail")
+    section_header("🔎 View Anime Dashboard")
     titles = df['title_english'].dropna().tolist()
     if titles:
-        selected = st.selectbox("Select an anime", titles, key="anime_detail_select")
-        if selected:
-            _render_anime_detail(conn, selected)
+        cc1, cc2 = st.columns([3, 1])
+        with cc1:
+            selected = st.selectbox("Select an anime", titles, key="anime_detail_select", label_visibility="collapsed")
+        with cc2:
+            if st.button("Open Full Dashboard ↗️", use_container_width=True):
+                anime_detail_dialog(selected)
+
+@st.dialog("Anime Analytics Dashboard", width="large")
+def anime_detail_dialog(title_english: str):
+    conn = get_connection()
+    try:
+        _render_anime_detail(conn, title_english)
+    finally:
+        conn.close()
 
 
 def _render_anime_detail(conn, title_english: str):

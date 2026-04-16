@@ -75,25 +75,22 @@ def render():
             combined["selection_label"] = combined["type"] + ": " + combined["title"]
             options = combined["selection_label"].tolist()
             
-            selected_label = st.selectbox("Select title to view details", ["-- Select --"] + options, key="search_detail_select")
-            
-            if selected_label and selected_label != "-- Select --":
-                # Parse type and title
-                # Because labels are "Type: Title", we split by first ': '
-                ctype, title = selected_label.split(": ", 1)
-                
-                st.markdown(f"#### {ctype} Details: {title}")
-                
-                if ctype == "Movie":
-                    from pages.movies import _render_movie_detail
-                    _render_movie_detail(conn, title)
-                elif ctype == "TV Series":
-                    from pages.tv_series import _render_series_detail
-                    _render_series_detail(conn, title)
-                elif ctype == "Anime":
-                    from pages.animated_shows import _render_anime_detail
-                    _render_anime_detail(conn, title)
-                    
+            cc1, cc2 = st.columns([3, 1])
+            with cc1:
+                selected_label = st.selectbox("Select title to view details", ["-- Select --"] + options, key="search_detail_select", label_visibility="collapsed")
+            with cc2:
+                if st.button("Open Full Dashboard ↗️", use_container_width=True):
+                    if selected_label and selected_label != "-- Select --":
+                        ctype, title = selected_label.split(": ", 1)
+                        if ctype == "Movie":
+                            from pages.movies import movie_detail_dialog
+                            movie_detail_dialog(title)
+                        elif ctype == "TV Series":
+                            from pages.tv_series import series_detail_dialog
+                            series_detail_dialog(title)
+                        elif ctype == "Anime":
+                            from pages.animated_shows import anime_detail_dialog
+                            anime_detail_dialog(title)
         else:
             empty_state(f"No results found for \"{query_text}\"", "🔍")
 

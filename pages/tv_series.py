@@ -79,13 +79,24 @@ def render():
 
         # ── Series Detail ────────────────────────────────────────────────
         st.divider()
-        section_header("🔎 Series Detail")
+        section_header("🔎 View Series Dashboard")
         titles = df['title_display'].dropna().tolist()
         if titles:
-            selected = st.selectbox("Select a series", titles, key="tv_detail_select")
-            if selected:
-                _render_series_detail(conn, selected)
+            cc1, cc2 = st.columns([3, 1])
+            with cc1:
+                selected = st.selectbox("Select a series", titles, key="tv_detail_select", label_visibility="collapsed")
+            with cc2:
+                if st.button("Open Full Dashboard ↗️", use_container_width=True):
+                    series_detail_dialog(selected)
 
+    finally:
+        conn.close()
+
+@st.dialog("TV Series Dashboard", width="large")
+def series_detail_dialog(title_display: str):
+    conn = get_connection()
+    try:
+        _render_series_detail(conn, title_display)
     finally:
         conn.close()
 

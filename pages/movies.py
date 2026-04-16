@@ -147,13 +147,24 @@ def render():
 
         # ── Movie Detail (expandable) ────────────────────────────────────
         st.divider()
-        section_header("🔎 Movie Detail")
+        section_header("🔎 View Movie Dashboard")
         movie_titles = df['title_display'].dropna().tolist()
         if movie_titles:
-            selected = st.selectbox("Select a movie", movie_titles, key="mov_detail_select")
-            if selected:
-                _render_movie_detail(conn, selected)
+            cc1, cc2 = st.columns([3, 1])
+            with cc1:
+                selected = st.selectbox("Select a movie", movie_titles, key="mov_detail_select", label_visibility="collapsed")
+            with cc2:
+                if st.button("Open Full Dashboard ↗️", use_container_width=True):
+                    movie_detail_dialog(selected)
 
+    finally:
+        conn.close()
+
+@st.dialog("Movie Analytics Dashboard", width="large")
+def movie_detail_dialog(title_display: str):
+    conn = get_connection()
+    try:
+        _render_movie_detail(conn, title_display)
     finally:
         conn.close()
 
