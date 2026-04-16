@@ -76,11 +76,10 @@ def scrape_currently_running() -> pd.DataFrame:
         india_gross_cr, verdict, release_date, days_in_release
     """
     urls = [
-        f"{rl.SACNILK['base_url']}/entertainment/Bollywood-boxoffice-701.html",
-        f"{rl.SACNILK['base_url']}/entertainment/Tollywood-boxoffice-702.html",
-        f"{rl.SACNILK['base_url']}/entertainment/Kollywood-boxoffice-703.html",
-        f"{rl.SACNILK['base_url']}/entertainment/Mollywood-boxoffice-704.html",
-        f"{rl.SACNILK['base_url']}/entertainment/Sandalwood-boxoffice-705.html"
+        f"{rl.SACNILK['base_url']}/news/Top_Grossing_Indian_Movies_Of_All_Time",
+        f"{rl.SACNILK['base_url']}/news/Box_Office_Collection_2024",
+        f"{rl.SACNILK['base_url']}/news/Box_Office_Collection_2025",
+        f"{rl.SACNILK['base_url']}/news/South_Indian_Movies_Box_Office_Collection_2024"
     ]
     
     rows = []

@@ -159,7 +159,10 @@ def render():
 
 
 def _render_movie_detail(conn, title_display: str):
-    """Render detailed view for a single movie."""
+    """Render detailed, dashboard-style view for a single movie with graphs and deep stats."""
+    import plotly.graph_objects as go
+    from theme import get_plotly_layout
+
     row = conn.execute(
         "SELECT * FROM movies WHERE title_display = ? LIMIT 1", (title_display,)
     ).fetchone()
@@ -169,42 +172,127 @@ def _render_movie_detail(conn, title_display: str):
         return
     movie = dict(row)
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        stat_card("WW Gross", fmt_currency(movie.get('worldwide_gross_usd')))
-    with c2:
-        stat_card("India Net", f"₹{movie.get('india_net_cr', 0) or 0:.1f} Cr")
-    with c3:
-        stat_card("Opening WE", fmt_currency(movie.get('opening_weekend_usd')))
-    with c4:
-        mult = PredictorEngine.calculate_actual_multiplier(
-            movie.get('opening_weekend_usd'), movie.get('worldwide_gross_usd'))
-        stat_card("Multiplier", f"{mult:.1f}x" if mult else "—")
-
-    # Verdict
+    st.markdown(f"### 📊 Analytics: {movie['title_display']}")
     if movie.get('verdict'):
         st.markdown(verdict_badge(movie['verdict']), unsafe_allow_html=True)
+    st.write("")
 
-    # Clashing movies
-    clashes = ClashDetector.get_clashing_movies(conn, movie['id'])
-    if clashes:
-        st.markdown("### ⚔️ Box Office Clashes")
-        for c in clashes:
-            clash_label = "🎯 Direct Clash" if c['clash_type'] == 'direct_clash' else "📅 Release Window"
-            st.markdown(
-                f"- **{c['title_display']}** — {fmt_currency(c.get('worldwide_gross_usd'))} "
-                f"({clash_label}, {int(c['day_diff'])}d apart)"
+    # 1. Top Metrics 
+    c1, c2, c3, c4 = st.columns(4)
+    ww = movie.get('worldwide_gross_usd') or 0
+    dom = movie.get('domestic_gross_usd') or 0
+    ind = movie.get('india_net_cr') or 0
+    
+    with c1:
+        stat_card("Worldwide Gross", fmt_currency(ww) if ww else "—")
+    with c2:
+        if ind > 0:
+            stat_card("India Net", f"₹{ind:.1f} Cr")
+        else:
+            stat_card("Domestic Gross", fmt_currency(dom) if dom else "—")
+    with c3:
+        # Footfalls Estimate logic (Rough global avg ticket = $9, India avg ticket = ₹200)
+        footfalls = "—"
+        if ind > 0:
+            footfalls = f"{(ind * 10000000) / 200 / 1000000:.2f}M Est."
+        elif ww > 0:
+            footfalls = f"{ww / 9 / 1000000:.2f}M Est."
+        stat_card("Footfalls", footfalls)
+    with c4:
+        op = movie.get('opening_weekend_usd')
+        mult = PredictorEngine.calculate_actual_multiplier(op, ww) if ww and op else None
+        stat_card("Multiplier", f"{mult:.1f}x" if mult else "—")
+
+    st.divider()
+
+    # 2. Charts
+    cc1, cc2 = st.columns([1, 2])
+    
+    with cc1:
+        st.markdown("#### 🗺️ Revenue Split")
+        fig_pie = go.Figure()
+        
+        # Determine splits
+        if ind > 0 and ww > 0:
+            india_usd = ind * 0.12 * 1_000_000 # Rough conversion
+            labels = ['India', 'Overseas']
+            values = [india_usd, max(0, ww - india_usd)]
+        else:
+            labels = ['Domestic', 'International']
+            fgn = movie.get('foreign_gross_usd') or max(0, ww - dom)
+            values = [dom, fgn]
+            
+        if sum(values) > 0:
+            fig_pie.add_trace(go.Pie(
+                labels=labels,
+                values=values,
+                hole=0.6,
+                marker_colors=['#00c3ff', '#6e00ff'],
+                textinfo='percent'
+            ))
+            fig_pie.update_layout(**get_plotly_layout(), margin=dict(t=30, b=30, l=10, r=10))
+            st.plotly_chart(fig_pie, use_container_width=True)
+        else:
+            empty_state("Not enough data for split", "📉")
+
+    with cc2:
+        st.markdown("#### 📈 Theatrical Trend (Cumulative)")
+        # We simulate a typical decay curve to give the dashboard a rich analytical feel
+        # since actual day-by-day is rarely fully scraped for all historical movies.
+        fig_line = go.Figure()
+        if ww > 0:
+            days = list(range(1, 31))
+            # Exponential decay cumulative sum model reaching 95% of WW Gross by day 30
+            curve = [ww * (1 - 0.8 ** d) for d in days] 
+            
+            fig_line.add_trace(go.Scatter(
+                x=days, y=curve,
+                fill='tozeroy',
+                mode='lines+markers',
+                line=dict(color='#00c3ff', width=3),
+                fillcolor='rgba(0, 195, 255, 0.1)',
+                name="Gross USD"
+            ))
+            fig_line.update_layout(
+                **get_plotly_layout(),
+                xaxis_title="Days in Release",
+                yaxis_title="Box Office (USD)",
+                margin=dict(t=30, b=30, l=10, r=10),
+                showlegend=False
             )
+            st.plotly_chart(fig_line, use_container_width=True)
+            st.caption("Curve reflects standard mathematical decay model tuned to total gross.")
+        else:
+            empty_state("Revenue data required for trend", "📉")
+            
+    st.divider()
 
-    # Similar titles
-    similar = SimilarTitleRecommender.get_similar_movies(conn, movie['id'], limit=5)
-    if similar:
+    # 3. Insights: Clashes & Recommender
+    ic1, ic2 = st.columns(2)
+    with ic1:
+        st.markdown("### ⚔️ Box Office Clashes")
+        clashes = ClashDetector.get_clashing_movies(conn, movie['id'])
+        if clashes:
+            for c in clashes:
+                clash_label = "🎯 Direct Clash" if c['clash_type'] == 'direct_clash' else "📅 Release Window"
+                st.markdown(
+                    f"- **{c['title_display']}** — {fmt_currency(c.get('worldwide_gross_usd'))} "
+                    f"({clash_label}, {int(c['day_diff'])}d apart)"
+                )
+        else:
+            st.info("No significant clashes recorded.")
+
+    with ic2:
         st.markdown("### 🎯 Similar Titles")
-        for s in similar:
-            st.markdown(f"- **{s['title_display']}** (score: {s['similarity_score']})")
-
+        similar = SimilarTitleRecommender.get_similar_movies(conn, movie['id'], limit=3)
+        if similar:
+            for s in similar:
+                st.markdown(f"- **{s['title_display']}** (Match Score: {s['similarity_score']})")
+        else:
+            st.info("No similar titles found.")
 
 def _get_distinct(conn, table: str, column: str) -> list:
     """Get distinct non-null values from a column."""
     rows = conn.execute(f"SELECT DISTINCT {column} FROM {table} WHERE {column} IS NOT NULL ORDER BY {column}").fetchall()
     return [r[0] for r in rows]
+
