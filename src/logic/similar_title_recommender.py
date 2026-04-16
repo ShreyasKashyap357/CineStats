@@ -39,7 +39,7 @@ class SimilarTitleRecommender:
         first_genre = t_genres[0] if t_genres else ""
         
         query = """
-            SELECT id, title_display, franchise_id, language, genre, poster_url, verdict
+            SELECT id, title_display, franchise_id, language, genre, verdict
             FROM movies
             WHERE id != ?
               AND (franchise_id = ? OR language = ? OR genre LIKE ?)

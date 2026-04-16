@@ -75,45 +75,50 @@ def scrape_currently_running() -> pd.DataFrame:
         title_display, title_normalized, language, india_net_cr,
         india_gross_cr, verdict, release_date, days_in_release
     """
-    url = f"{rl.SACNILK['base_url']}/entertainment/Tollywood-boxoffice-702.html"
-    # Try the main page
-    try:
-        soup = _get_soup(f"{rl.SACNILK['base_url']}")
-    except FetchException:
-        return pd.DataFrame()
-
+    urls = [
+        f"{rl.SACNILK['base_url']}/entertainment/Bollywood-boxoffice-701.html",
+        f"{rl.SACNILK['base_url']}/entertainment/Tollywood-boxoffice-702.html",
+        f"{rl.SACNILK['base_url']}/entertainment/Kollywood-boxoffice-703.html",
+        f"{rl.SACNILK['base_url']}/entertainment/Mollywood-boxoffice-704.html",
+        f"{rl.SACNILK['base_url']}/entertainment/Sandalwood-boxoffice-705.html"
+    ]
+    
     rows = []
-    # Look for movie listing tables/cards
-    movie_divs = soup.find_all("div", class_=re.compile(r"movie|film", re.I))
-    tables = soup.find_all("table")
+    
+    for url in urls:
+        try:
+            soup = _get_soup(url)
+        except FetchException:
+            continue
+            
+        tables = soup.find_all("table")
+        for table in tables:
+            for tr in table.find_all("tr")[1:]:  # skip header
+                cells = tr.find_all("td")
+                if len(cells) < 4:
+                    continue
+                try:
+                    title_tag = cells[0].find("a") or cells[1].find("a")
+                    title_display = title_tag.get_text(strip=True) if title_tag else cells[0].get_text(strip=True)
+                    href = title_tag.get("href", "") if title_tag else ""
 
-    for table in tables:
-        for tr in table.find_all("tr")[1:]:  # skip header
-            cells = tr.find_all("td")
-            if len(cells) < 4:
-                continue
-            try:
-                title_tag = cells[0].find("a") or cells[1].find("a")
-                title_display = title_tag.get_text(strip=True) if title_tag else cells[0].get_text(strip=True)
-                href = title_tag.get("href", "") if title_tag else ""
+                    # Try to extract collection data from cells
+                    collection = None
+                    for cell in cells[1:]:
+                        val = _parse_crore(cell.get_text())
+                        if val is not None and val > 0:
+                            collection = val
+                            break
 
-                # Try to extract collection data from cells
-                collection = None
-                for cell in cells[1:]:
-                    val = _parse_crore(cell.get_text())
-                    if val is not None and val > 0:
-                        collection = val
-                        break
-
-                rows.append({
-                    "title_display":    title_display,
-                    "title_normalized": _normalize_title(title_display),
-                    "india_net_cr":     collection,
-                    "sacnilk_url":      f"{rl.SACNILK['base_url']}{href}" if href else None,
-                    "source":           "sacnilk",
-                })
-            except (IndexError, AttributeError):
-                continue
+                    rows.append({
+                        "title_display":    title_display,
+                        "title_normalized": _normalize_title(title_display),
+                        "india_net_cr":     collection,
+                        "sacnilk_url":      f"{rl.SACNILK['base_url']}{href}" if href else None,
+                        "source":           "sacnilk",
+                    })
+                except (IndexError, AttributeError):
+                    continue
 
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 

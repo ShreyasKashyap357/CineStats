@@ -42,12 +42,18 @@ def _api_get(endpoint: str, params: dict = None) -> dict:
     url = f"{_BASE}{endpoint}"
     all_params = {"api_key": api_key, **(params or {})}
 
-    try:
-        resp = requests.get(url, params=all_params, timeout=10)
-        resp.raise_for_status()
-        return resp.json()
-    except requests.RequestException as e:
-        raise FetchException(SOURCE_NAME, endpoint, str(e))
+    import time
+    for attempt in range(3):
+        try:
+            resp = requests.get(url, params=all_params, timeout=10)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.exceptions.SSLError as e:
+            if attempt == 2:
+                raise FetchException(SOURCE_NAME, endpoint, str(e))
+            time.sleep(1)
+        except requests.RequestException as e:
+            raise FetchException(SOURCE_NAME, endpoint, str(e))
 
 
 def get_poster_url(poster_path: str, size: str = "w185") -> Optional[str]:

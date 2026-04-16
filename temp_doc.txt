@@ -1,0 +1,1770 @@
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+CineStats
+Global Box Office & TV Analytics Tracker
+Project Requirements & Technical Specification  —  v2.0
+Project Name
+CineStats — Global Box Office & TV 
+Analytics Tracker
+Version
+2.0
+Document Type
+Project Requirements & Technical 
+Specification
+Primary Audience
+Indian & Global Film / TV Enthusiasts
+Platform
+Streamlit Web Application
+Monetization
+Free Forever — No Ads, No Paid Tier
+Default Theme
+Dark Mode (Light Mode available)
+Status
+Planning / Pre-Development
+Confidential — For Internal / Personal Use Only
+Project Requirements & Technical Specification
+Page 1
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Table of Contents
+1   Executive Summary
+2   Project Overview
+2.1   Goals & Objectives
+2.2   Target Audience
+2.3   Scope & Boundaries
+3   Navigation & UI Structure
+3.1   Sidebar Navigation
+3.2   Dark & Light Mode
+3.3   Currency Selector
+4   Home View (Default Tab)
+4.1   Top Movies of the Year
+4.2   Releases Today / This Week
+4.3   Now Playing
+5   Movie Detail View
+6   Series & Franchise View
+7   TV Series Module
+8   Search
+9   Compare Tab
+10   PDF Report Export
+11   Core Features Reference
+12   Data Sources
+12.1   Box Office Mojo (Global)
+12.2   Sacnilk (India)
+12.3   TV Data Sources
+12.4   Data Matching & Unification
+13   Technology Stack
+14   System Architecture
+14.1   Data Layer
+14.2   Business Logic Layer
+14.3   Presentation Layer
+14.4   Data Flow
+15   Database Schema
+16   Data Refresh & Caching Policy
+17   Functional Requirements
+18   Non-Functional Requirements
+Project Requirements & Technical Specification
+Page 2
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+19   UI/UX Design Specification
+19.1   Dark Mode Design
+19.2   Light Mode Design
+19.3   Component Patterns
+20   Scraper Contract & Output Schema
+21   Error Handling & Graceful Degradation
+22   Unit Testing Strategy
+23   Build Plan & Milestones
+24   Configuration & Environment Setup
+25   Legal & Ethical Considerations
+26   Future Scope & Roadmap
+27   Risks & Mitigations
+28   Glossary
+Project Requirements & Technical Specification
+Page 3
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+1   Executive Summary
+CineStats is a modern, sleek, dark-mode-first interactive web dashboard that aggregates and 
+visualizes box office and viewership data for films, film series, cinematic franchises, and TV series. 
+Built on a Python + Streamlit stack, it is permanently free with no advertising and no paid tier.
+The application is structured around four primary content types: individual Movies, Series & 
+Franchises (multi-film sagas and cinematic universes), TV Series (tracked as a fully separate 
+module), and Comparisons (up to 10 entities side-by-side). Each has its own dedicated tab and 
+detail view in the sidebar.
+CineStats delivers immediate value on first load: the Home tab populates a full, rich dashboard with 
+no user input. Data is cached per session to avoid redundant scraping. Users are free to explore 
+any movie, series, or franchise they like; they simply cannot re-fetch the exact same data set 
+repeatedly within the same session.
+Every view in CineStats supports one-click PDF report export — a fully formatted, visualization-rich 
+document the user can download and save.
+2   Project Overview
+2.1  Goals & Objectives
+•
+Deliver a fully-populated Home tab on first load with no required user interaction.
+•
+Present a unified Global + India perspective serving Indian audiences alongside 
+international users.
+•
+Support Movie Detail views, Series/Franchise views (all entries, no internal limit), and TV 
+Series views as separate first-class sections.
+•
+Allow cross-entity comparison of up to 10 movies, series, or franchises in the Compare tab. 
+TV-to-TV comparison is separate; TV cannot be mixed with films.
+•
+Enforce session-level data caching to prevent scrape spam on the same view, while 
+allowing free exploration of different entities.
+•
+Provide downloadable, visualization-rich PDF reports for any view.
+•
+Support multi-currency display with a persistent currency selector.
+•
+Be permanently free — no ads, no subscriptions, no paywalls, no data selling.
+2.2  Target Audience
+•
+Indian film enthusiasts tracking both Hollywood and Bollywood/regional releases.
+Project Requirements & Technical Specification
+Page 4
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+•
+Box office analysts and hobbyist researchers seeking comparative and historical data.
+•
+TV viewers interested in ratings, viewership trends, and season-level breakdowns.
+•
+Developers and students exploring Streamlit dashboard and scraping patterns.
+2.3  Scope & Boundaries
+In Scope
+Film box office data (global + India), TV series ratings/viewership, 
+series & franchise aggregation, comparison tool (up to 10), PDF export, 
+multi-currency display, dark/light mode, sidebar navigation.
+Out of Scope
+Ticket booking, OTT/streaming data (future), social media integration, 
+user accounts, push notifications to external services.
+TV vs Film Rule
+TV series is a fully separate module and tab. TV series cannot be 
+compared with films or film franchises. TV-to-TV comparison is 
+supported.
+Within a Series
+There is no limit on the number of films displayed within a single series 
+or franchise detail view. All entries are shown.
+Comparison Limit
+Up to 10 entities (movies, series, or franchises) in the Compare tab 
+simultaneously.
+Monetization
+Free forever. No advertising. No premium tier.
+Deployment
+Streamlit Community Cloud (free tier). SQLite for local persistence.
+Legal
+Personal and educational use only. No commercial redistribution of 
+scraped data.
+3   Navigation & UI Structure
+3.1  Sidebar Navigation
+CineStats uses a persistent left sidebar as its primary navigation. The sidebar is always visible 
+across all views and contains the following tabs:
+Home
+Default landing view. Fully populated on first load. Shows Top of Year (Global + 
+India), Releases Today/This Week, and Now Playing.
+Search
+Unified search across all movies, series, franchises, and TV series. Navigates to 
+individual detail views on selection.
+Compare
+Compare up to 10 movies, series, or franchises side-by-side with tables and 
+overlaid charts. TV comparison is a separate sub-section here.
+TV Series
+Dedicated module for television series. Fully separate from the film sections.
+Settings
+Currency selector, dark/light mode toggle, and session preferences.
+Project Requirements & Technical Specification
+Page 5
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Clicking any movie, series, or franchise card in Home or Search navigates to that entity's detail 
+view, rendered within the main content area. A breadcrumb trail shows the navigation path.
+3.2  Dark & Light Mode
+•
+Default is Dark Mode — dark backgrounds, high-contrast text, vivid accent colours. This is 
+the primary design target and should look polished and premium.
+•
+Light Mode is available via a toggle in Settings or a quick-access icon in the top-right corner. 
+Light mode is colourful, modern, and sleek — not a plain white page. It uses vibrant accent 
+colours, soft card shadows, and a carefully chosen palette to remain visually rich.
+•
+Mode preference persists for the session via Streamlit session state.
+•
+All Plotly charts use matching dark/light templates (plotly_dark vs a custom light template).
+•
+Exported PDFs use a neutral light theme regardless of the active UI mode, ensuring 
+readability when printed.
+3.3  Currency Selector
+Users choose a preferred display currency from the Settings panel. This affects all monetary figures 
+across the app.
+Supported Currencies
+USD ($), INR ( ), EUR (€), GBP (£), JPY (¥), AED (
+₹
+.د إ), AUD (A$), CAD 
+(C$), SGD (S$)
+Default
+INR ( ) — primary audience is Indian.
+₹
+Worldwide Gross Rule
+Worldwide and International figures always show USD as the primary 
+figure. If the selected currency is not USD, the converted amount 
+appears in brackets: e.g. $599M ( 4,980 Cr). If USD is selected, only 
+₹
+USD is shown.
+India Figures
+India Net and India Gross always show INR (  Cr) as the primary 
+₹
+figure. Converted value shown in brackets if selected currency differs.
+Exchange Rates
+Fetched once per session from a free public exchange rate API (e.g. 
+exchangerate.host or open.er-api.com) and cached in session state. 
+Conversion is informational only — all authoritative figures remain in 
+their native currency.
+Rate Staleness
+A visible 'Rates as of [time]' label is shown wherever converted figures 
+appear, so users understand they are indicative.
+4   Home View (Default Tab)
+Project Requirements & Technical Specification
+Page 6
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+The Home tab is the default landing page. It is fully populated on first load with no user input. It is 
+organised into three clearly labelled, visually separated sections. The Home tab is read-only — 
+users navigate to Search or Compare for interactive exploration.
+4.1  Top Movies of the Year
+Displayed as two side-by-side columns or switchable sub-tabs:
+Global Top (from Box Office Mojo)
+•
+Worldwide gross leaders for the current calendar year.
+•
+Data columns: Rank, Title, Worldwide Gross (USD + brackets if non-USD selected), 
+Domestic %, Foreign %, Days in Release, Verdict.
+•
+Visualisation: Interactive Plotly horizontal bar chart — Top 10 Worldwide Grosses.
+•
+Visualisation: Plotly pie chart — Domestic vs Foreign split for the highlighted film.
+Indian Top (from Sacnilk)
+•
+India Net leaders covering Bollywood, Tamil, Telugu, Malayalam, Kannada, and other 
+regional industries.
+•
+Data columns: Rank, Title, Language, India Net (  Cr), India Gross (  Cr), Verdict, Days in 
+₹
+₹
+Release.
+•
+Visualisation: Interactive Plotly horizontal bar chart — Top 10 India Net.
+•
+Clicking any film in either section navigates to its Movie Detail View.
+4.2  Releases Today / This Week
+International Releases
+•
+Hollywood and global films released this week, plus notable historical releases on today's 
+date.
+•
+Shows opening day/weekend performance and current gross if still running.
+Indian Releases
+•
+Bollywood and regional Indian films released this week, plus historical releases on today's 
+date.
+•
+Shows opening day India Net/Gross and verdict where available.
+4.3  Now Playing (Currently in Theaters)
+•
+Films currently running in cinemas worldwide and in India.
+•
+Displays: daily gross, total gross, holdover %, days in release, theater count where 
+available.
+•
+Quick filter toggle between Global focus and India focus.
+Project Requirements & Technical Specification
+Page 7
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+•
+Sortable by current gross, days in release, or weekly change.
+•
+Clicking any entry navigates to its Movie Detail View.
+5   Movie Detail View
+Accessed by clicking any film card in Home, Search results, or within a Series/Franchise view. 
+Displays comprehensive performance data for a single film.
+Header
+Title, release date, language, genre tags (from TMDB future scope), 
+poster thumbnail (future scope), verdict badge.
+Key Metrics Bar
+Worldwide Gross, Domestic Gross, India Net, India Gross, Days in 
+Release, Theater Count — displayed as prominent stat cards.
+Regional Breakdown
+Expandable table: US, India, China, UK, Overseas breakdown. India 
+row further splits into Hindi vs regional language collections where 
+available.
+Daily/Weekly Chart
+Plotly line chart of daily gross over the full run (global and India on 
+same chart with dual Y-axes if needed).
+Cumulative Chart
+Plotly cumulative gross trajectory chart.
+Opening vs Lifetime
+Opening weekend gross, opening weekend % of total, and a projected 
+lifetime gross estimate with confidence range.
+On This Day
+Historical spotlight: other films that opened or peaked on the same 
+calendar date in prior years, with links to compare.
+Verdict Context
+How the film's verdict compares to others in its language, genre, and 
+franchise (if applicable).
+Series Link
+If the film belongs to a series or franchise, a prominent link to that 
+Series/Franchise view.
+PDF Export
+One-click button to export the full detail view as a PDF report.
+Compare Button
+Add this film to the Compare tab (up to 10 total).
+6   Series & Franchise View
+Accessed by clicking a series/franchise card in Search, or via a film's 'Series Link'. Displays 
+aggregated and per-entry data for all films in the series. There is no limit on the number of films 
+displayed — every entry in the series is shown.
+Header
+Series/Franchise name, total number of films, cumulative worldwide 
+gross, cumulative India Net, franchise lifespan (first to latest release).
+Cumulative Stat Cards
+Total Worldwide Gross, Total India Net, Average Film Gross, Highest-
+Project Requirements & Technical Specification
+Page 8
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Grossing Entry, Lowest-Grossing Entry.
+All Films Table
+Full table listing every film in the series: Rank (within series), Title, 
+Year, Worldwide Gross, India Net, Verdict, Days in Release.
+Per-Film Bar Chart
+Plotly grouped bar chart: Worldwide Gross and India Net per film, 
+sorted chronologically.
+Trajectory Chart
+Plotly line chart showing how cumulative franchise gross grew across 
+each new release.
+Verdict Distribution
+Plotly pie/donut chart showing verdict breakdown across all films in the 
+franchise.
+Regional Split
+Stacked bar chart: Domestic vs International split per film.
+Individual Film Links
+Each film row links to its own Movie Detail View.
+PDF Export
+One-click full series report export as PDF.
+Compare Button
+Add this series to the Compare tab (counts as 1 entity toward the 10-
+entity limit).
+7   TV Series Module
+TV Series is a fully independent module accessible from the dedicated TV Series tab in the sidebar. 
+TV data is sourced and stored separately from film data. TV series cannot be compared with films 
+or film franchises.
+7.1  TV Series List View
+•
+Browsable list of tracked TV series with search and filter (network, genre, status: 
+Ongoing/Ended, country of origin).
+•
+Shows: Series Name, Network/Streamer, Seasons, Episode Count, Status, Average 
+Rating/Viewership.
+7.2  TV Series Detail View
+Header
+Series name, network, genre, premiere date, status (Ongoing / Ended), 
+country.
+Season Overview
+Table listing all seasons: Season number, episode count, premiere 
+date, average viewership, average rating, peak episode viewership.
+Viewership Chart
+Plotly line chart of episode-by-episode viewership across all seasons 
+(with season markers).
+Rating Chart
+Plotly line chart of episode ratings (IMDb, Rotten Tomatoes audience 
+score, or equivalent) across all seasons.
+Project Requirements & Technical Specification
+Page 9
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Season Comparison
+Bar chart: average viewership per season.
+Episode Table
+Expandable per-season episode list with title, air date, viewership, and 
+rating.
+PDF Export
+Full TV series report export as PDF.
+Compare Button
+Add to TV Compare (separate from film compare, max 10 TV series).
+7.3  TV Series Data Sources
+•
+Primary: TVMaze API (free, no key required) for episode listings, air dates, and network 
+data.
+•
+Ratings: IMDb ratings via scraping or a community dataset where available.
+•
+US Network Viewership: Wikipedia episode tables (scraped) for major US broadcast/cable 
+networks.
+•
+Note: Comprehensive viewership data may not be available for all series. The UI handles 
+missing data gracefully with 'Data unavailable' labels rather than errors.
+8   Search
+The Search tab provides a unified search experience across all content types in CineStats.
+Search Bar
+A prominent search input at the top of the tab. Searches as the user 
+types (debounced at 300ms) against the local SQLite database.
+Content Types
+Results are grouped into: Films, Series & Franchises, and TV Series — 
+each in its own clearly labelled results section.
+Filters
+Year range, language, region (Global / India), verdict, minimum 
+worldwide gross, minimum India Net, content type toggle (Film / 
+Series / TV).
+Result Cards
+Each result shows: title, year, type badge (Film / Series / TV), key 
+metric (worldwide gross or India Net), verdict badge. Clicking navigates 
+to the relevant detail view.
+No Results Handling
+If no local results found, CineStats offers to perform a live scrape 
+lookup. This is the only user-triggered scrape outside the session-initial 
+data load.
+Recent Searches
+Last 10 search queries stored in session state and shown as quick-
+access chips below the search bar.
+9   Compare Tab
+Project Requirements & Technical Specification
+Page 10
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+The Compare tab allows side-by-side analysis of multiple entities. Two separate comparison 
+contexts exist: Film/Franchise comparisons and TV Series comparisons. These are never mixed.
+9.1  Film / Franchise Comparison
+Entity Limit
+Up to 10 movies, series, or franchises simultaneously. Mix of individual 
+films and series/franchises is allowed.
+Selection
+Entities are added via the search-and-add input in the Compare tab, or 
+via the 'Add to Compare' button on any Movie or Series detail view.
+Metrics Table
+Side-by-side table: Worldwide Gross, Domestic Gross, Foreign Gross, 
+India Net, India Gross, Opening Weekend, Days in Release, Verdict — 
+one column per entity.
+Bar Chart
+Grouped Plotly bar chart comparing worldwide gross and India Net 
+across all selected entities.
+Trajectory Overlay
+Overlaid Plotly line chart showing cumulative gross over time for each 
+entity, useful for comparing opening trajectories.
+Verdict Matrix
+Visual grid showing verdict for each entity, colour-coded by outcome.
+Regional Pie
+Per-entity small pie charts showing domestic vs international split, 
+arranged in a grid.
+Clear / Remove
+Users can remove individual entities from the comparison or clear all 
+and start fresh.
+9.2  TV Series Comparison
+Entity Limit
+Up to 10 TV series simultaneously.
+Separation
+Completely separate from Film comparison. Rendered as a distinct 
+sub-section within the Compare tab.
+Metrics Table
+Side-by-side: Total Seasons, Total Episodes, Average Viewership, 
+Peak Viewership, Average Rating, Status.
+Viewership Chart
+Overlaid line charts of average viewership per season, one line per 
+series.
+Rating Chart
+Overlaid line charts of average rating per season, one line per series.
+Clear / Remove
+Individual removal or full clear.
+10   PDF Report Export
+Every detail view and the Compare view includes a prominent 'Download PDF Report' button. The 
+exported PDF is fully formatted, includes data tables and chart images, and is suitable for saving or 
+sharing.
+Project Requirements & Technical Specification
+Page 11
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Library
+ReportLab (Python) for PDF generation. Plotly charts are exported as 
+static PNG images via kaleido and embedded in the PDF.
+Cover Page
+Report type (Movie / Series / Franchise / Comparison / TV Series), 
+entity name(s), date generated, CineStats branding.
+Data Tables
+All tables visible in the UI are reproduced in the PDF using ReportLab 
+TableStyle with colour-coded headers matching the app's palette.
+Charts
+All Plotly visualisations are rendered to PNG at 150dpi and embedded 
+at appropriate sizes. Chart titles and axis labels are preserved.
+Currency Note
+A footer note states the currency used for converted figures and the 
+exchange rate at time of export.
+Theme
+PDFs always use a clean, light neutral theme regardless of the active 
+UI mode, ensuring legibility when printed.
+File Naming
+Auto-named: CineStats_[EntityName]_Report_[YYYY-MM-DD].pdf
+Scope
+Available from: Movie Detail, Series/Franchise Detail, TV Series Detail, 
+and Compare views.
+11   Core Features Reference
+Feature
+Description
+Search & Filters
+Unified search across films, series, franchises, TV series. Filters by 
+year, language, region, verdict, gross threshold, content type.
+Movie Detail View
+Full single-film breakdown: regional data, daily/cumulative charts, 
+opening vs lifetime, On This Day, verdict context.
+Series & Franchise View
+All films in a series with no internal entry limit. Aggregated stats, per-
+film bar/line charts, trajectory, verdict distribution.
+TV Series Module
+Separate tab: series list, detail view with season/episode data, 
+viewership and rating charts. Cannot be mixed with film comparisons.
+Compare (Films)
+Up to 10 films/series/franchises side-by-side with metrics table, bar 
+charts, trajectory overlay, verdict matrix.
+Compare (TV)
+Up to 10 TV series side-by-side with viewership and rating overlays. 
+Separate from film comparison.
+Daily / Weekend Movers
+Home tab section: biggest daily gainers and losers with % change. 
+Refreshed on session load.
+Opening Weekend Predictor
+Historical-average model projecting lifetime gross from opening 
+weekend with a confidence range indicator.
+Clash Analyzer
+Special view for same-release-date films showing side-by-side 
+performance and verdict outcomes.
+Regional Breakdown
+US, India, China, UK, Overseas splits. India row further shows Hindi vs 
+Project Requirements & Technical Specification
+Page 12
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Feature
+Description
+regional language collections.
+On This Day Spotlight
+Historical section on Movie Detail: top earners from the same calendar 
+date in prior years, linkable to Compare.
+Currency Selector
+Persistent per-session currency choice. Worldwide/International always 
+shows USD; converted value in brackets if different currency selected.
+Dark / Light Mode
+Dark mode by default (premium, sleek). Light mode is colourful and 
+modern. Toggle in sidebar Settings or top-bar icon.
+PDF Report Export
+One-click download of fully formatted PDF with data tables and 
+embedded chart images. Available on all detail and compare views.
+Session Cache
+Data fetched once per session per entity. Users cannot spam-refresh 
+the same view. Exploring different entities always works.
+Genre & Studio Aggregates
+Roll-up views of top films by genre or studio with Plotly charts.
+Watchlist
+Per-session watchlist. Add films/series to track. Optional milestone 
+display (e.g. crossed 100 Cr).
+₹
+12   Data Sources
+12.1  Box Office Mojo (Global Film Data)
+•
+Worldwide gross totals (current year and historical).
+•
+Domestic (US/Canada) and International splits.
+•
+Daily and weekly performance charts.
+•
+Currently In Theaters listing with daily and cumulative grosses.
+•
+Opening weekend data and theater counts.
+12.2  Sacnilk (India Film Data)
+•
+India Net and India Gross in INR Crores for Bollywood, Tamil, Telugu, Malayalam, Kannada, 
+and other regional industries.
+•
+Day-wise India collections for recent releases.
+•
+Release dates and official verdicts.
+•
+Currently running Indian films with daily collections.
+12.3  TV Data Sources
+•
+TVMaze API — free, no API key required. Provides episode listings, air dates, network, 
+genre, and series status.
+Project Requirements & Technical Specification
+Page 13
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+•
+Wikipedia episode tables — scraped for US network/cable viewership figures where 
+available.
+•
+IMDb ratings — scraped or sourced from community datasets for episode and series ratings.
+12.4  Data Matching & Unification
+•
+Title normalization: lowercased, punctuation stripped, whitespace normalized before 
+matching.
+•
+Fuzzy string matching (rapidfuzz library) to handle minor title discrepancies between 
+sources.
+•
+Release date proximity matching within a configurable window (default ±7 days) to handle 
+India vs global release gaps.
+•
+Manual override mapping table in SQLite for edge cases such as dubbed title variations.
+•
+A match confidence score is computed and stored; uncertain matches are flagged visually in 
+the UI.
+13   Technology Stack
+Layer
+Technology
+Purpose
+Language
+Python 3.11+
+Core application language.
+Web Scraping
+requests + BeautifulSoup4
+HTTP requests and HTML parsing for BOM and 
+Sacnilk.
+Tabular Parsing
+pandas.read_html
+Structured HTML table extraction.
+Fuzzy Matching
+rapidfuzz
+Title matching between data sources.
+Data Processing
+pandas
+Cleaning, normalization, calculations, cross-
+source merging.
+TV Data
+TVMaze REST API
+Episode, season, and series metadata for TV 
+module.
+Exchange Rates
+exchangerate.host or 
+open.er-api.com
+Free currency rate API, fetched once per 
+session.
+Database
+SQLite3 (sqlite3 stdlib)
+Local persistence: movies, series, TV, daily 
+data, watchlist, match overrides, cache 
+metadata.
+UI Framework
+Streamlit
+Interactive web dashboard with sidebar, tabs, 
+session state, theming.
+Visualisations
+Plotly (Express + Graph 
+Objects)
+Interactive bar, line, pie, donut, and stacked 
+charts. Dark and light templates.
+PDF Generation
+ReportLab
+PDF report creation with styled tables and 
+embedded images.
+Project Requirements & Technical Specification
+Page 14
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Layer
+Technology
+Purpose
+Chart Export
+kaleido
+Static PNG export of Plotly charts for 
+embedding in PDFs.
+Deployment
+Streamlit Community Cloud
+Free-tier hosting via GitHub integration.
+Dependency Mgmt
+pip + requirements.txt
+Package management and reproducible 
+environment.
+14   System Architecture
+14.1  Data Layer
+•
+Scraper Modules: One module per source (bom_scraper.py, sacnilk_scraper.py, 
+tvmaze_client.py, wikipedia_tv_scraper.py). Each returns a clean, typed pandas DataFrame.
+•
+Cache Registry: SQLite table scrape_cache stores (source, entity_key, scraped_at) to track 
+what has been fetched in the current session.
+•
+Upsert Logic: All writes use INSERT OR REPLACE. Schema migrations handled by a 
+versioned init_db.py script.
+•
+Exchange Rate Store: Session-level dict in Streamlit session_state. Not persisted to SQLite.
+14.2  Business Logic Layer
+•
+TitleMatcher: Fuzzy-matching engine producing unified movie objects from BOM + Sacnilk 
+records.
+•
+FranchiseGrouper: Auto-groups films into series using title pattern matching and a manual 
+override table.
+•
+PredictorEngine: Historical-average model for opening weekend to lifetime gross projection.
+•
+ClashDetector: Groups films with the same release date for Clash Analyzer view.
+•
+MoverCalculator: Computes daily gross deltas for the Home movers section.
+•
+CurrencyConverter: Applies the session exchange rate to produce display strings in the 
+selected currency.
+•
+PDFReportBuilder: Orchestrates ReportLab layout and kaleido chart image generation for 
+export.
+14.3  Presentation Layer
+•
+app.py: Main Streamlit entry point. Defines sidebar navigation and routes to page modules.
+•
+pages/: One module per tab (home.py, search.py, compare.py, tv_series.py, settings.py).
+•
+components/: Reusable UI components (movie_card.py, stat_bar.py, chart_wrapper.py, 
+pdf_button.py).
+Project Requirements & Technical Specification
+Page 15
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+•
+theme.py: Central colour and style constants shared across all page and component 
+modules.
+14.4  Data Flow
+1.
+On first load of a tab or entity, Streamlit checks the scrape_cache table for a matching 
+session entry.
+2.
+If no session entry exists, the relevant scraper is called. Rate-limiting delays are applied.
+3.
+Scraped data is cleaned, matched, and upserted into SQLite. The cache entry is written.
+4.
+Subsequent loads of the same view within the session read directly from SQLite — no re-
+scrape.
+5.
+The user may freely navigate to different movies, series, or franchises; each triggers its own 
+cache check.
+6.
+User interactions (search, filter, currency change, compare add/remove) operate on in-
+memory DataFrames loaded from SQLite — no network calls.
+7.
+PDF export reads the current in-memory state, renders Plotly charts to PNG via kaleido, and 
+builds the report with ReportLab — all locally.
+15   Database Schema
+All tables in cineStats.db use SQLite3. Schema versioning is handled by a db_version table and a 
+migration runner in init_db.py.
+movies
+id
+INTEGER PRIMARY KEY AUTOINCREMENT
+title
+TEXT NOT NULL — normalized title used as matching key
+title_display
+TEXT — original display title
+release_date
+DATE — YYYY-MM-DD
+language
+TEXT — primary language
+franchise_id
+INTEGER REFERENCES franchises(id) — nullable
+worldwide_gross_usd
+REAL
+domestic_gross_usd
+REAL
+foreign_gross_usd
+REAL
+india_net_cr
+REAL — India Net in INR Crores
+india_gross_cr
+REAL
+opening_weekend_usd
+REAL
+theater_count
+INTEGER
+Project Requirements & Technical Specification
+Page 16
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+verdict
+TEXT
+days_in_release
+INTEGER
+source
+TEXT — 'bom', 'sacnilk', or 'merged'
+match_confidence
+REAL — 0.0 to 1.0; null if single-source
+last_updated
+TIMESTAMP
+franchises
+id
+INTEGER PRIMARY KEY AUTOINCREMENT
+name
+TEXT NOT NULL
+name_normalized
+TEXT — for matching
+total_films
+INTEGER
+first_release
+DATE
+latest_release
+DATE
+cumulative_worldwide
+REAL — USD
+cumulative_india_net
+REAL — INR Cr
+last_updated
+TIMESTAMP
+daily_performance
+id
+INTEGER PRIMARY KEY AUTOINCREMENT
+movie_id
+INTEGER REFERENCES movies(id)
+date
+DATE
+daily_gross_usd
+REAL
+daily_india_net_cr
+REAL
+cumulative_gross_usd
+REAL
+cumulative_india_net
+REAL
+theater_count
+INTEGER
+tv_series
+id
+INTEGER PRIMARY KEY AUTOINCREMENT
+name
+TEXT NOT NULL
+network
+TEXT
+genre
+TEXT
+Project Requirements & Technical Specification
+Page 17
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+status
+TEXT — 'Ongoing' or 'Ended'
+premiere_date
+DATE
+total_seasons
+INTEGER
+total_episodes
+INTEGER
+avg_rating
+REAL
+tvmaze_id
+INTEGER
+last_updated
+TIMESTAMP
+tv_episodes
+id
+INTEGER PRIMARY KEY AUTOINCREMENT
+series_id
+INTEGER REFERENCES tv_series(id)
+season
+INTEGER
+episode
+INTEGER
+title
+TEXT
+air_date
+DATE
+viewership_millions
+REAL — nullable; US viewership where available
+rating
+REAL — IMDb or equivalent
+scrape_cache
+id
+INTEGER PRIMARY KEY AUTOINCREMENT
+source
+TEXT — 'bom', 'sacnilk', 'tvmaze', 'wikipedia_tv'
+entity_key
+TEXT — normalized identifier for what was scraped
+session_id
+TEXT — Streamlit session ID
+scraped_at
+TIMESTAMP
+watchlist
+id
+INTEGER PRIMARY KEY AUTOINCREMENT
+entity_type
+TEXT — 'movie', 'franchise', 'tv_series'
+entity_id
+INTEGER
+alert_usd_milestone
+REAL — nullable
+alert_inr_milestone
+REAL — nullable
+added_at
+TIMESTAMP
+Project Requirements & Technical Specification
+Page 18
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+16   Data Refresh & Caching Policy
+Box office data is not updated continuously on source sites — figures typically update once daily or 
+less. CineStats therefore applies a session-based caching policy rather than a time-based one, 
+balancing data freshness with responsible scraping behaviour.
+Session Cache
+Each scraped entity is cached for the duration of the user session 
+(identified by Streamlit session ID). The same entity will not be re-
+scraped within the same session under any circumstance.
+No Spam Refresh
+Users cannot manually trigger a refresh of the same view/entity within a 
+session. There is no refresh button on data views.
+New Entity = New Fetch
+Navigating to a different movie, series, or franchise always works 
+freely. Each new entity gets its own cache entry and fetches fresh data 
+if not already in SQLite.
+Between Sessions
+On a new session start, all prior session cache entries are treated as 
+expired. Fresh scrapes occur for any entities loaded in the new 
+session.
+SQLite Persistence
+Data fetched in prior sessions remains in SQLite and serves as a 
+fallback if a live scrape fails. The UI shows a 'Last updated: [date]' label 
+when serving persisted data.
+Exchange Rates
+Fetched once per session at startup and stored in session state. Not 
+persisted to SQLite.
+17   Functional Requirements
+The following table captures formal functional requirements using SHALL notation. Each 
+requirement has a unique ID for traceability.
+ID
+Requirement
+Priority
+FR-01
+The system SHALL display a fully populated Home tab on first load 
+without any user input.
+Must Have
+FR-02
+The system SHALL display global top grossers (Worldwide Gross in 
+USD) from Box Office Mojo.
+Must Have
+FR-03
+The system SHALL display Indian top grossers (India Net in INR Cr) 
+from Sacnilk.
+Must Have
+FR-04
+The system SHALL display a Now Playing section for both global and 
+India films.
+Must Have
+FR-05
+The system SHALL provide a unified search across films, series, 
+franchises, and TV series.
+Must Have
+Project Requirements & Technical Specification
+Page 19
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+ID
+Requirement
+Priority
+FR-06
+The system SHALL display a Movie Detail View with regional 
+breakdown, daily charts, and cumulative charts.
+Must Have
+FR-07
+The system SHALL display a Series/Franchise View with all films in the 
+series (no entry limit).
+Must Have
+FR-08
+The system SHALL provide a TV Series module as a separate tab, with 
+series list and detail views.
+Must Have
+FR-09
+TV series SHALL NOT be comparable with films or film franchises.
+Must Have
+FR-10
+The system SHALL allow comparison of up to 10 films, series, or 
+franchises simultaneously.
+Must Have
+FR-11
+The system SHALL allow comparison of up to 10 TV series 
+simultaneously (separate from film compare).
+Must Have
+FR-12
+The system SHALL NOT re-scrape the same entity within the same 
+session.
+Must Have
+FR-13
+The system SHALL allow users to freely navigate to any different 
+movie, series, or franchise.
+Must Have
+FR-14
+The system SHALL provide a one-click PDF report export on all detail 
+and compare views.
+Must Have
+FR-15
+Exported PDFs SHALL include all data tables and embedded chart 
+images from the current view.
+Must Have
+FR-16
+The system SHALL support a currency selector with at least USD, INR, 
+EUR, GBP, JPY, AED.
+Must Have
+FR-17
+Worldwide/International gross SHALL always display USD as the 
+primary figure.
+Must Have
+FR-18
+If a non-USD currency is selected, converted amounts SHALL appear 
+in brackets next to USD figures.
+Must Have
+FR-19
+The system SHALL default to Dark Mode on first load.
+Must Have
+FR-20
+The system SHALL provide a Light Mode toggle accessible from the 
+sidebar Settings.
+Must Have
+FR-21
+The system SHALL provide a sidebar with Home, Search, Compare, 
+TV Series, and Settings tabs.
+Must Have
+FR-22
+The system SHALL show an Opening Weekend Predictor with 
+confidence range on Movie Detail.
+Should Have
+FR-23
+The system SHALL show an On This Day section on Movie Detail 
+linking to comparable historical films.
+Should Have
+FR-24
+The system SHALL show a Clash Analyzer for films sharing the same 
+release date.
+Should Have
+FR-25
+The system SHALL support a per-session Watchlist.
+Should Have
+FR-26
+The system SHALL show Daily/Weekend Movers on the Home tab.
+Should Have
+Project Requirements & Technical Specification
+Page 20
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+ID
+Requirement
+Priority
+FR-27
+The system SHALL show Genre and Studio aggregate views.
+Could Have
+FR-28
+The system SHALL allow CSV export of any data table.
+Could Have
+18   Non-Functional Requirements
+ID
+Category
+Requirement
+NFR-
+01
+Performance
+The Home tab SHALL complete its initial render (from cached SQLite 
+data) within 3 seconds on a standard broadband connection.
+NFR-
+02
+Performance
+Live scrape operations SHALL complete within 15 seconds per source. 
+A loading spinner SHALL be displayed during scraping.
+NFR-
+03
+Performance
+PDF report generation SHALL complete within 10 seconds for any single 
+entity report.
+NFR-
+04
+Reliability
+If a scrape fails, the system SHALL fall back to the most recent SQLite 
+data and display a visible 'Using cached data from [date]' notice. The 
+app SHALL NOT crash.
+NFR-
+05
+Reliability
+If the exchange rate API is unavailable, the system SHALL fall back to a 
+hardcoded approximate rate and display a warning label.
+NFR-
+06
+Usability
+The application SHALL be fully navigable without any onboarding or 
+documentation.
+NFR-
+07
+Usability
+All charts SHALL include titles, axis labels, and tooltips on hover.
+NFR-
+08
+Usability
+All monetary figures SHALL clearly state their currency and unit (e.g. 
+USD, INR Cr).
+NFR-
+09
+Usability
+Missing or unavailable data SHALL be shown as 'N/A' or 'Data 
+unavailable', never as a blank cell or unhandled error.
+NFR-
+10
+Compatibility
+The application SHALL render correctly on Chrome, Firefox, and Safari 
+(latest two major versions).
+NFR-
+11
+Compatibility
+The application SHALL be usable on screen widths of 1024px and 
+above (desktop / tablet landscape).
+NFR-
+12
+Scalability
+The SQLite database SHALL remain performant up to 50,000 movie 
+records and 500,000 daily performance rows.
+NFR-
+13
+Maintainability
+Each scraper module SHALL be independently replaceable without 
+modifying the business logic or UI layers.
+NFR-
+14
+Maintainability
+All colour and style constants SHALL be centralised in a single theme.py 
+file.
+NFR-
+15
+Legal
+The system SHALL enforce a minimum 2-second delay between 
+consecutive HTTP requests to the same domain.
+Project Requirements & Technical Specification
+Page 21
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+19   UI/UX Design Specification
+19.1  Dark Mode Design (Primary)
+Dark mode is the default and primary design target. It should feel premium, sleek, and modern — 
+not a generic Streamlit default.
+Background
+#0F172A (deep navy-black) for the main canvas. #1E293B for cards 
+and panels.
+Surface / Cards
+#1E293B with a subtle 1px border at #334155. Slight border-radius 
+(8px equivalent) for a modern card feel.
+Primary Accent
+#3B82F6 (blue) for CTAs, active nav items, chart highlights, and links.
+Secondary Accent
+#8B5CF6 (purple) for series/franchise elements. #10B981 (green) for 
+positive verdicts. #EF4444 (red) for negative verdicts.
+Text — Primary
+#F1F5F9 (near-white) for headings and key figures.
+Text — Secondary
+#94A3B8 for labels, captions, and metadata.
+Charts
+plotly_dark template as base. Accent colours applied as consistent 
+colour sequences.
+Sidebar
+#1E293B background. Active tab highlighted with #3B82F6 left border 
+and slightly lighter background.
+19.2  Light Mode Design
+Light mode must be colourful, modern, and sleek — not a plain white page.
+Background
+#F8FAFC (very light grey-white). Cards use #FFFFFF with a soft box 
+shadow.
+Surface / Cards
+#FFFFFF with a 1px #E2E8F0 border and subtle drop shadow. Border-
+radius consistent with dark mode.
+Primary Accent
+#2563EB (vibrant blue). Secondary: #7C3AED (purple), #059669 
+(green), #DC2626 (red).
+Text — Primary
+#0F172A for headings and key figures.
+Text — Secondary
+#64748B for labels and metadata.
+Charts
+Custom light template with white background, coloured grid lines 
+(#E2E8F0), and the same accent colour sequence as dark mode.
+Sidebar
+White background with active tab highlighted by a #2563EB left border 
+and #EFF6FF background.
+Gradient Accents
+Section headers and the cover area use subtle linear gradients (e.g. 
+Project Requirements & Technical Specification
+Page 22
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+#EFF6FF to #DBEAFE) to add visual richness without being garish.
+19.3  Component Patterns
+Stat Cards
+Key metrics displayed as full-width or grid stat cards with a large bold 
+number, a label below, and a thin coloured top border indicating 
+category (blue = global, amber = India).
+Film Cards
+Compact cards in a grid: poster placeholder (grey box), title, year, key 
+metric, verdict badge. Clicking navigates to detail view.
+Verdict Badges
+Colour-coded pill badges: Blockbuster / All-Time Blockbuster = green, 
+Hit / Super Hit = teal, Average = amber, Flop / Disaster = red.
+Charts
+All charts have consistent padding, visible tooltips on hover, and a 
+download-as-PNG icon in the Plotly toolbar.
+Tables
+Striped rows (alternating very subtle background). Column headers 
+bold with background fill. Sortable columns indicated by arrow icon.
+Breadcrumb
+Simple text breadcrumb at top of detail views: Home > Search > [Film 
+Name] or Home > [Series Name] > [Film Name].
+Loading State
+A Streamlit spinner with a contextual message (e.g. 'Fetching data from 
+Box Office Mojo...') shown during all scrape operations.
+Empty / Error
+A styled empty-state card (icon + message) for no results. A red alert 
+banner for errors, showing a human-readable message and a 'Use 
+cached data' fallback option.
+20   Scraper Contract & Output Schema
+Each scraper module must conform to a defined contract. This ensures the business logic layer can 
+consume any scraper's output without modification if a scraper is replaced.
+20.1  Contract Rules
+•
+Each scraper exposes a single public function: scrape(entity_key: str) -> pd.DataFrame.
+•
+The returned DataFrame always contains the defined columns for that source, even if 
+values are NaN for missing fields.
+•
+All string fields are stripped, lowercased, and normalized before returning.
+•
+All monetary fields are returned as Python float (not string). Currency symbols are never 
+included in data fields.
+•
+All date fields are returned as Python date objects (not strings).
+•
+If a scrape fails for any reason, the scraper raises a ScraperException with a human-
+readable message. It never returns partial data silently.
+Project Requirements & Technical Specification
+Page 23
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+20.2  BOM Scraper Output Schema
+title_normalized
+str — lowercase, stripped
+title_display
+str — original casing
+release_date
+date
+worldwide_gross_usd
+float — USD
+domestic_gross_usd
+float — USD
+foreign_gross_usd
+float — USD
+opening_weekend_usd
+float — USD, nullable
+theater_count
+int, nullable
+days_in_release
+int
+20.3  Sacnilk Scraper Output Schema
+title_normalized
+str
+title_display
+str
+release_date
+date
+language
+str
+india_net_cr
+float — INR Crores
+india_gross_cr
+float — INR Crores, nullable
+verdict
+str
+days_in_release
+int
+21   Error Handling & Graceful Degradation
+Failure Scenario
+User-Visible Behaviour
+Technical Handling
+Scrape fails (network error 
+/ site structure change)
+Red alert banner: 'Could not fetch 
+fresh data. Showing last available 
+data from [date].' App continues 
+normally using SQLite cache.
+ScraperException caught at the data 
+layer. Falls back to most recent 
+SQLite row(s). Error logged to 
+console.
+No cached data and 
+scrape fails
+Empty-state card: 'No data 
+available for this title yet. Try 
+again later.'
+Returns empty DataFrame. UI 
+renders empty state component, not 
+an error page.
+Exchange rate API 
+unavailable
+Warning label on all converted 
+figures: 'Using approximate rates. 
+Live rates unavailable.'
+Falls back to hardcoded 
+approximate rates stored in 
+constants.py.
+Project Requirements & Technical Specification
+Page 24
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Failure Scenario
+User-Visible Behaviour
+Technical Handling
+Partial data (one source 
+missing)
+Data shown from available 
+source. A small info badge: 'India 
+data unavailable' or 'Global data 
+unavailable'.
+TitleMatcher returns a partial match 
+object. UI renders available fields 
+and marks missing fields as N/A.
+PDF export fails
+Error toast: 'PDF generation 
+failed. Please try again.'
+Exception caught in 
+PDFReportBuilder. UI shows toast 
+notification. No crash.
+SQLite locked (concurrent 
+write)
+Transparent to user — slight 
+delay.
+WAL mode enabled. Retry logic (3 
+attempts, 200ms backoff) before 
+raising an error.
+TV data unavailable for a 
+series
+Fields shown as 'Data 
+unavailable'. Charts that require 
+missing data are hidden with a 
+notice.
+TVMaze returns empty list for 
+unknown series. UI handles zero-
+length DataFrames in all chart 
+components.
+22   Unit Testing Strategy
+CineStats uses Python's built-in unittest framework for all unit testing. Tests are organised by 
+module and run via a single test runner. No integration or end-to-end tests are required for the initial 
+release.
+22.1  Test Framework & Tooling
+•
+Framework: unittest (Python stdlib) — no external test runner required.
+•
+Test files: Located in tests/ directory, mirroring the src/ structure. e.g. 
+tests/test_bom_scraper.py for src/bom_scraper.py.
+•
+Mocking: unittest.mock.patch and MagicMock used to mock HTTP calls and SQLite writes in 
+all scraper and database tests.
+•
+Test data: Static HTML fixture files stored in tests/fixtures/ for scraper parsing tests. Static 
+CSV fixtures for matcher and calculator tests.
+•
+Running: python -m unittest discover tests/
+22.2  Test Coverage by Module
+Module
+Test File
+Key Test Cases
+bom_scraper.py
+test_bom_scraper.py
+Parses valid HTML fixture correctly; raises 
+ScraperException on malformed HTML; returns 
+correct column types; strips currency symbols from 
+gross fields.
+sacnilk_scraper.py
+test_sacnilk_scraper.py
+Parses India Net and verdict correctly; handles 
+Project Requirements & Technical Specification
+Page 25
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Module
+Test File
+Key Test Cases
+missing verdict gracefully; normalizes title strings; 
+raises ScraperException on HTTP error.
+title_matcher.py
+test_title_matcher.py
+Exact match returns confidence 1.0; fuzzy match 
+within threshold succeeds; below-threshold match 
+returns no match; release date mismatch beyond 
+window returns no match.
+franchise_grouper.py
+test_franchise_grouper.
+py
+Films with matching normalized prefix are grouped 
+correctly; override table entries override auto-
+grouping; ungrouped films return franchise_id = 
+null.
+predictor_engine.py
+test_predictor_engine.p
+y
+Projection within expected range for known 
+historical inputs; handles zero opening weekend 
+gracefully; returns confidence interval not just point 
+estimate.
+currency_converter.py
+test_currency_converter
+.py
+Correct conversion for USD-to-INR; identity 
+conversion when selected currency equals source 
+currency; fallback rate used when live rate absent.
+pdf_report_builder.py
+test_pdf_report_builder.
+py
+Output is a valid PDF byte stream; PDF contains 
+expected section titles; handles empty DataFrame 
+without exception; chart embed does not raise 
+when kaleido is available.
+init_db.py
+test_init_db.py
+All expected tables exist after init; upsert does not 
+duplicate rows; schema version is recorded 
+correctly.
+mover_calculator.py
+test_mover_calculator.p
+y
+Top gainer identified correctly from fixture data; 
+percentage change calculation is accurate; 
+handles ties deterministically.
+clash_detector.py
+test_clash_detector.py
+Films on same date are grouped; films on different 
+dates are not grouped; single-film date returns a 
+group of one.
+22.3  Minimum Coverage Target
+•
+All scraper parsing functions: 100% line coverage.
+•
+All business logic modules (matcher, grouper, predictor, calculator): 90% line coverage.
+•
+Database layer (init, upsert, cache): 85% line coverage.
+•
+PDF builder and currency converter: 80% line coverage.
+•
+Streamlit UI components are excluded from unit testing; they are verified by manual review.
+23   Build Plan & Milestones
+Project Requirements & Technical Specification
+Page 26
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Pha
+se
+Milestone
+Deliverables
+1
+Project Setup & DB
+Repository structure, requirements.txt, init_db.py with full schema, 
+test skeleton, theme.py with dark/light palette constants.
+2
+Film Scrapers
+bom_scraper.py and sacnilk_scraper.py with full unit tests. 
+ScraperException and scrape_cache integration. Fixture files for 
+tests.
+3
+TV & Exchange Rate
+tvmaze_client.py, wikipedia_tv_scraper.py with unit tests. 
+currency_converter.py with fallback logic and unit tests.
+4
+Business Logic
+title_matcher.py, franchise_grouper.py, predictor_engine.py, 
+clash_detector.py, mover_calculator.py — all with unit tests.
+5
+Home Tab
+Streamlit app.py + home.py with Top of Year, Releases Today/This 
+Week, and Now Playing sections. Dark mode. Plotly charts. Session 
+cache.
+6
+Detail Views
+movie_detail.py, series_franchise.py, tv_series_detail.py. All charts, 
+stat cards, regional breakdown, On This Day.
+7
+Search & Sidebar
+search.py with filters, result cards, recent searches. Sidebar 
+navigation. Breadcrumb. Light mode toggle functional.
+8
+Compare Tab
+compare.py: Film comparison (up to 10) and TV comparison (up to 
+10, separate). All charts and metrics tables.
+9
+PDF Export
+pdf_report_builder.py with kaleido chart export. PDF button on all 
+detail and compare views. Unit tests.
+10
+Currency & Settings
+Settings panel. Currency selector end-to-end. Bracket display logic 
+for worldwide gross. Rate staleness label.
+11
+Polish, Error Handling, 
+QA
+Empty states, error banners, loading spinners, fallback flows for all 
+failure scenarios. Full test suite passing. Manual UI review.
+12
+Deployment
+Deploy to Streamlit Community Cloud via GitHub. README with 
+setup instructions. Final requirements.txt freeze.
+24   Configuration & Environment Setup
+24.1  Repository Structure
+cinestats/
+Root of the repository.
+app.py
+Streamlit entry point.
+requirements.txt
+Pinned dependency list.
+cinestats.db
+SQLite database file (gitignored).
+src/
+All Python source modules: scrapers, matchers, calculators, converters, pdf 
+builder.
+Project Requirements & Technical Specification
+Page 27
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+pages/
+One Streamlit page module per tab: home.py, search.py, compare.py, 
+tv_series.py, settings.py.
+components/
+Reusable Streamlit UI components.
+theme.py
+Centralised colour and style constants.
+tests/
+All unittest test files, mirroring src/ structure.
+tests/fixtures/
+Static HTML and CSV fixtures for unit tests.
+.streamlit/
+config.toml
+Streamlit config: theme base, server settings.
+24.2  Key Dependencies (requirements.txt)
+streamlit
+UI framework.
+pandas
+Data processing.
+requests
+HTTP scraping.
+beautifulsoup4
+HTML parsing.
+lxml
+HTML/XML parser backend for BeautifulSoup and pandas.read_html.
+rapidfuzz
+Fuzzy string matching for title matcher.
+plotly
+Interactive charts.
+kaleido
+Static PNG export of Plotly charts for PDF embedding.
+reportlab
+PDF generation.
+tvmaze (or direct requests 
+to TVMaze REST API)
+TV series data.
+24.3  Streamlit Configuration (.streamlit/config.toml)
+[theme] base
+"dark" — sets Streamlit's base theme to dark.
+primaryColor
+#3B82F6 — primary accent blue.
+backgroundColor
+#0F172A — main canvas background.
+secondaryBackgroundCol
+or
+#1E293B — sidebar and card background.
+textColor
+#F1F5F9 — primary text.
+[server] maxUploadSize
+Not applicable (no user uploads). Set to default.
+Project Requirements & Technical Specification
+Page 28
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+24.4  Local Development Setup
+8.
+Clone the repository: git clone https://github.com/[user]/cinestats.git
+9.
+Create a virtual environment: python -m venv .venv && source .venv/bin/activate
+10. Install dependencies: pip install -r requirements.txt
+11. Initialise the database: python src/init_db.py
+12. Run the app locally: streamlit run app.py
+13. Run unit tests: python -m unittest discover tests/
+25   Legal & Ethical Considerations
+•
+Personal and Educational Use Only: CineStats is not intended for commercial redistribution. 
+All scraped data is used solely for display and analysis within the application.
+•
+Robots.txt Compliance: All scrapers must check and respect the robots.txt of each source 
+domain before initiating requests.
+•
+Rate Limiting: A minimum delay of 2 seconds between consecutive requests to the same 
+domain is enforced in all scrapers. Concurrent scraping of the same domain is not permitted.
+•
+User-Agent Headers: All HTTP requests must include an honest, descriptive User-Agent 
+string: CineStats-Bot/2.0 (personal project; non-commercial).
+•
+No Login Circumvention: Scrapers must not bypass authentication, CAPTCHA, paywalls, or 
+any access control mechanism.
+•
+Session Cache: The session-based cache directly limits the frequency of scraping. The 
+same data set is never fetched more than once per session.
+•
+No PII Collection: CineStats does not collect, store, or transmit any personally identifiable 
+information. The watchlist is stored locally in SQLite only.
+•
+No Commercial Redistribution: Scraped data is used solely within CineStats. It is not sold, 
+published, or shared via an API.
+•
+Monetization: CineStats is free forever with no advertising, no sponsored content, and no 
+data monetisation of any kind.
+26   Future Scope & Roadmap
+26.1  Near-Term (v2.1 – v2.3)
+•
+TMDB API Integration: Pull movie posters, genre tags, cast lists, and trailer links to enrich 
+Movie Detail views.
+•
+Automated Daily Data Refresh: GitHub Actions scheduled job to update the SQLite 
+database daily and push changes to the deployed app.
+•
+Milestone Alerts (Console): Display a milestone achievement banner on the detail view 
+when a film crosses a configurable threshold (e.g. crossed 100 Cr India Net today).
+₹
+Project Requirements & Technical Specification
+Page 29
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+26.2  Medium-Term (v3.0)
+•
+OTT Tracking: Track when films move to streaming and display streaming release dates 
+alongside theatrical data.
+•
+Predictive Analytics: ML-based gross trajectory prediction using opening weekend, screen 
+count, genre, franchise history, and seasonal factors.
+•
+Historical Archive: Year-on-year comparison tools with a dedicated historical analysis view.
+•
+Genre & Studio Deep-Dives: Dedicated studio performance views with year-on-year trend 
+charts.
+26.3  Long-Term (v4.0+)
+•
+User Accounts: Persistent cross-session watchlists and personalised dashboards.
+•
+Social Sentiment Correlation: Correlate IMDb/RT score movements with box office trajectory 
+changes.
+•
+Franchise Prediction: Predict opening weekend of upcoming sequels based on franchise 
+trajectory and external factors.
+•
+Mobile-Optimised Layout: Responsive design extending support to mobile screen widths.
+27   Risks & Mitigations
+Risk
+Likeli
+hood
+Impact
+Mitigation
+Source site HTML 
+structure changes
+High
+Scrapers 
+break, no fresh 
+data.
+Modular scrapers. Schema validation on output. 
+Unit tests with fixtures catch structure changes 
+early. Fallback to SQLite cache.
+IP rate-limiting or 
+blocking
+Mediu
+m
+Scrape 
+failures, data 
+gaps.
+Minimum 2s delays. Session cache limits 
+frequency. Exponential backoff on retries. 
+Graceful fallback to cached data.
+TVMaze API changes 
+or deprecation
+Low
+TV module 
+data gaps.
+TVMaze is a stable free API. Direct scraping of 
+Wikipedia TV tables as fallback.
+kaleido chart export 
+failures in Streamlit 
+Cloud
+Mediu
+m
+PDF charts 
+missing or 
+blank.
+Unit test PDF builder. Pin kaleido version. Detect 
+failure and generate PDF without charts rather 
+than crashing.
+SQLite concurrency 
+(multiple sessions)
+Mediu
+m
+Potential write 
+contention.
+WAL journal mode. Retry logic (3x, 200ms 
+backoff). Read-only fallback if write lock cannot 
+be acquired.
+Title matching errors
+Mediu
+m
+Incorrect data 
+associations 
+shown.
+Confidence score stored and displayed. Manual 
+override table for known edge cases. Flagged 
+matches shown with a warning badge in UI.
+Streamlit Community 
+Cloud cold start 
+Mediu
+m
+Slow first load 
+for new 
+Pre-populate SQLite on deploy. Show loading 
+spinner with contextual message. Home tab 
+Project Requirements & Technical Specification
+Page 30
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+Risk
+Likeli
+hood
+Impact
+Mitigation
+latency
+sessions.
+prioritises cached data.
+Exchange rate API 
+unavailability
+Low
+Incorrect or 
+absent 
+currency 
+conversion.
+Hardcoded approximate fallback rates. Visible 
+warning label. No feature blocked by this failure.
+28   Glossary
+India Net
+Box office collections in India after deducting GST and entertainment 
+tax. The standard industry metric for Indian films.
+India Gross
+Total box office collections in India before tax deductions.
+Worldwide Gross
+Total global box office revenue in USD across all territories.
+Domestic (US)
+Box office collections specifically within the United States and Canada.
+Verdict
+Industry shorthand for commercial performance vs budget: All-Time 
+Blockbuster, Blockbuster, Super Hit, Hit, Average, Flop, Disaster.
+Now Playing
+Films currently running in cinemas — i.e., not yet finished their 
+theatrical run.
+Clash
+Two or more films sharing the same theatrical release date and 
+competing for audience share.
+Holdover
+A film's week-on-week retention of audience attendance. High holdover 
+indicates strong word-of-mouth.
+BOM
+Box Office Mojo — primary global box office data aggregator, owned by 
+IMDb/Amazon.
+Sacnilk
+Leading Indian box office tracking website covering Bollywood and all 
+major regional industries.
+TVMaze
+A free REST API providing structured TV series, episode, and network 
+data.
+Upsert
+Database operation: INSERT if the record does not exist, UPDATE if it 
+does. Uses INSERT OR REPLACE in SQLite.
+WAL Mode
+Write-Ahead Logging — SQLite journaling mode that improves 
+concurrent read/write performance.
+Session Cache
+A record in SQLite's scrape_cache table tracking what data has been 
+fetched in the current Streamlit session, preventing re-scraping.
+Franchise
+A collection of films sharing a common cinematic universe, series, or 
+brand (e.g. Marvel Cinematic Universe, Fast & Furious).
+rapidfuzz
+Python library for fast fuzzy string matching, used in the title matcher to 
+align film names across sources.
+Project Requirements & Technical Specification
+Page 31
+CineStats — Global Box Office & TV Analytics Tracker  |  v2.0
+kaleido
+Python library that enables static image export of Plotly charts, used to 
+embed charts in PDF reports.
+ReportLab
+Python library for programmatic PDF generation, used to build all 
+CineStats PDF report exports.
+End of Document  —  CineStats v2.0 Project Specification
+Project Requirements & Technical Specification
+Page 32

@@ -67,6 +67,33 @@ def render():
             combined = pd.concat(results, ignore_index=True)
             st.success(f"Found {len(combined)} result(s) for \"{query_text}\"")
             paginated_dataframe(combined, "search_results")
+            
+            st.divider()
+            st.markdown("### 🔎 View Details")
+            
+            # Create a selection list like "Movie: Inception", "Anime: Naruto"
+            combined["selection_label"] = combined["type"] + ": " + combined["title"]
+            options = combined["selection_label"].tolist()
+            
+            selected_label = st.selectbox("Select title to view details", ["-- Select --"] + options, key="search_detail_select")
+            
+            if selected_label and selected_label != "-- Select --":
+                # Parse type and title
+                # Because labels are "Type: Title", we split by first ': '
+                ctype, title = selected_label.split(": ", 1)
+                
+                st.markdown(f"#### {ctype} Details: {title}")
+                
+                if ctype == "Movie":
+                    from pages.movies import _render_movie_detail
+                    _render_movie_detail(conn, title)
+                elif ctype == "TV Series":
+                    from pages.tv_series import _render_series_detail
+                    _render_series_detail(conn, title)
+                elif ctype == "Anime":
+                    from pages.animated_shows import _render_anime_detail
+                    _render_anime_detail(conn, title)
+                    
         else:
             empty_state(f"No results found for \"{query_text}\"", "🔍")
 
