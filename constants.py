@@ -76,7 +76,7 @@ def get_data_cutoff() -> date:
 # ── Database ─────────────────────────────────────────────────────────────────
 DB_PATH     = "cinestats.db"
 SEED_DB_PATH = "seed.db"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 8
 
 # ── Matching ─────────────────────────────────────────────────────────────────
 FUZZY_MATCH_THRESHOLD = 85      # rapidfuzz score threshold

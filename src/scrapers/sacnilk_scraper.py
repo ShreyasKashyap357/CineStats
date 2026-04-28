@@ -11,7 +11,7 @@ Scrapes:
 All monetary values are returned in INR Crores.
 """
 import re
-import requests
+from curl_cffi import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 from datetime import datetime, date
@@ -22,18 +22,32 @@ import rate_limits as rl
 
 SOURCE_NAME = "sacnilk_scraper"
 _limiter = RateLimiter()
+_session = None
 
+def get_sacnilk_session() -> requests.Session:
+    """Returns a centralized curl_cffi session mimicking Chrome to bypass Cloudflare natively."""
+    global _session
+    if _session is None:
+        _session = requests.Session(impersonate="chrome120")
+        # Pre-fetch the home page to solve the JS challenge and snag cf_clearance
+        try:
+            _session.get("https://sacnilk.com/", timeout=15)
+        except Exception as e:
+            print(f"[Sacnilk Auth] Initial Cloudflare handshake failed: {e}")
+    return _session
 
-def _get_soup(url: str) -> BeautifulSoup:
-    """Fetch a URL with rate limiting and return parsed soup."""
+def _get_soup(url: str, session: Optional[requests.Session] = None) -> BeautifulSoup:
+    """Fetch a URL with rate limiting and return parsed soup, bypassing Cloudflare."""
     if not _limiter.wait(rl.SACNILK["domain"]):
         raise FetchException(SOURCE_NAME, url, "Rate limit timeout")
 
-    headers = {"User-Agent": rl.SACNILK["user_agent"]}
+    req_obj = session if session else get_sacnilk_session()
+    
     try:
-        resp = requests.get(url, headers=headers, timeout=15)
-        resp.raise_for_status()
-    except requests.RequestException as e:
+        resp = req_obj.get(url, timeout=15)
+        if hasattr(resp, 'raise_for_status'):
+            resp.raise_for_status()
+    except Exception as e:
         raise FetchException(SOURCE_NAME, url, str(e))
 
     return BeautifulSoup(resp.text, "lxml")
@@ -68,12 +82,10 @@ def _normalize_title(title: str) -> str:
     return title.strip()
 
 
-def scrape_currently_running() -> pd.DataFrame:
+def scrape_currently_running(progress_callback=None) -> list:
     """Scrape Sacnilk for currently running Indian films.
 
-    Returns DataFrame with columns:
-        title_display, title_normalized, language, india_net_cr,
-        india_gross_cr, verdict, release_date, days_in_release
+    Returns a list of dicts with preliminary data, including sacnilk_url.
     """
     urls = [
         f"{rl.SACNILK['base_url']}/news/Top_Grossing_Indian_Movies_Of_All_Time",
@@ -98,10 +110,18 @@ def scrape_currently_running() -> pd.DataFrame:
                     continue
                 try:
                     title_tag = cells[0].find("a") or cells[1].find("a")
-                    title_display = title_tag.get_text(strip=True) if title_tag else cells[0].get_text(strip=True)
+                    # Use a pipe separator to catch inner spans (e.g. Pallichattambi|Mollywood | 2026)
+                    raw_text = cells[0].get_text(separator='|', strip=True) 
+                    parts = [p.strip() for p in raw_text.split('|') if p.strip()]
+                    
+                    # Usually: [Title, Industry, Year] or [Title]
+                    title_display = parts[0] if parts else raw_text
+                    industry = parts[1].replace("•", "").strip() if len(parts) > 1 else None
+                    year = parts[2] if len(parts) > 2 else None
+                    
                     href = title_tag.get("href", "") if title_tag else ""
 
-                    # Try to extract collection data from cells
+                    # Extract basic collection
                     collection = None
                     for cell in cells[1:]:
                         val = _parse_crore(cell.get_text())
@@ -112,6 +132,8 @@ def scrape_currently_running() -> pd.DataFrame:
                     rows.append({
                         "title_display":    title_display,
                         "title_normalized": _normalize_title(title_display),
+                        "language":         industry,
+                        "release_date":     f"{year}-01-01" if year and year.isdigit() else None, 
                         "india_net_cr":     collection,
                         "sacnilk_url":      f"{rl.SACNILK['base_url']}{href}" if href else None,
                         "source":           "sacnilk",
@@ -119,8 +141,144 @@ def scrape_currently_running() -> pd.DataFrame:
                 except (IndexError, AttributeError):
                     continue
 
-    return pd.DataFrame(rows) if rows else pd.DataFrame()
+    return rows
 
+def scrape_box_office_collection_list(progress_callback=None) -> list:
+    """Uses curl_cffi to navigate the filter API and grab all Indian movies."""
+    base_url = 'https://sacnilk.com/entertainmenttopbar/Box_Office_Collection'
+    session = requests.Session(impersonate="chrome120")
+    
+    try:
+        response = session.get(base_url, params={'hl': 'en'}, timeout=15)
+    except Exception:
+        return []
+        
+    soup = BeautifulSoup(response.text, 'lxml')
+    token_input = soup.find('input', {'name': 'list_cache_token'})
+    if not token_input:
+        return []
+        
+    cache_token = token_input.get('value')
+    offset = 0
+    batch_size = 10
+    has_more_data = True
+    all_movies = []
+    
+    headers = {
+        'accept': '*/*',
+        'origin': 'https://sacnilk.com',
+        'referer': 'https://sacnilk.com/entertainmenttopbar/Box_Office_Collection?hl=en',
+    }
+
+    # Fetch max 100 movies to prevent hanging forever
+    while has_more_data and offset < 100:
+        payload = {
+            'action': (None, 'filter_movies'),
+            'offset': (None, str(offset)),
+            'load_more': (None, 'true'),
+            'current_movie_count': (None, str(batch_size)),
+            'list_cache_token': (None, cache_token),
+            'date_range': (None, 'All Time'),
+            'movie_name': (None, ''),
+        }
+        
+        try:
+            api_response = session.post(
+                base_url,
+                params={'hl': 'en'},
+                headers=headers,
+                files=payload,
+                timeout=15
+            )
+        except Exception:
+            break
+            
+        data = api_response.text 
+        if not data or "no more records" in data.lower() or len(data.strip()) == 0:
+            break
+            
+        # Parse the HTML snippets returned by API
+        api_soup = BeautifulSoup(data, 'lxml')
+        for tr in api_soup.find_all("tr"):
+            cells = tr.find_all("td")
+            if len(cells) < 4:
+                continue
+            try:
+                title_tag = cells[0].find("a") or cells[1].find("a")
+                raw_text = cells[0].get_text(separator='|', strip=True) 
+                parts = [p.strip() for p in raw_text.split('|') if p.strip()]
+                
+                title_display = parts[0] if parts else raw_text
+                
+                # Better filtering for non-movie content
+                non_movie_keywords = [
+                    '50 ', 'total', 'overall', 'summary', 'all time', 'lifetime', 
+                    'collection', 'gross', 'net', 'worldwide', 'india', 'overseas',
+                    'year', 'weekend', 'opening', 'day', 'week', 'month',
+                    'rank', 'position', 'top', 'bottom', 'list', 'chart',
+                    'records', 'record', 'club', 'cr ', 'cr.', 'lakh', 'million',
+                    'billion', 'box office', 'bo', 'collection', 'earnings'
+                ]
+                
+                # Skip if title is empty or contains non-movie keywords
+                if not title_display:
+                    continue
+                    
+                title_lower = title_display.lower()
+                if any(keyword in title_lower for keyword in non_movie_keywords):
+                    continue
+                
+                # Skip if title is mostly numbers or symbols (likely a summary row)
+                if sum(c.isdigit() for c in title_display) > len(title_display) / 2:
+                    continue
+                    
+                industry = parts[1].replace("•", "").strip() if len(parts) > 1 else None
+                year = parts[2] if len(parts) > 2 else None
+                href = title_tag.get("href", "") if title_tag else ""
+                
+                # Only keep Indian films with valid industry
+                if industry and ("wood" in industry.lower() or "india" in industry.lower()):
+                    all_movies.append({
+                        "title_display":    title_display,
+                        "title_normalized": _normalize_title(title_display),
+                        "language":         industry,
+                        "release_date":     f"{year}-01-01" if year and year.isdigit() else None,
+                        "sacnilk_url":      f"{rl.SACNILK['base_url']}{href}" if href else None,
+                        "source":           "sacnilk"
+                    })
+            except Exception:
+                pass
+                
+        offset += batch_size
+        import time
+        time.sleep(2)
+        
+    return all_movies
+
+def search_sacnilk(query: str) -> Optional[str]:
+    """Uses DuckDuckGo Lite to find the sacnilk URL for a specific movie query."""
+    import urllib.parse
+    try:
+        session = requests.Session(impersonate="chrome120")
+        resp = session.post(
+            "https://lite.duckduckgo.com/lite/",
+            data={"q": f"site:sacnilk.com {query}"},
+            timeout=10
+        )
+        soup = BeautifulSoup(resp.text, "lxml")
+        
+        for a in soup.find_all("a"):
+            href = a.get("href", "")
+            if "sacnilk.com" in href and "Box_Office_Collection" not in href and "news" not in href:
+                # DDG Lite wraps URLs in a redirect
+                parsed = urllib.parse.parse_qs(urllib.parse.urlparse(href).query)
+                real_url = parsed.get("uddg", [href])[0]
+                if "sacnilk.com" in real_url:
+                    return real_url
+        return None
+    except Exception as e:
+        print(f"DuckDuckGo search failed: {e}")
+        return None
 
 def scrape_movie_detail(sacnilk_url: str) -> dict:
     """Scrape a specific movie page on Sacnilk for full India data.
@@ -172,36 +330,55 @@ def scrape_movie_detail(sacnilk_url: str) -> dict:
             ).date().isoformat()
         except ValueError:
             pass
+            
+    # Overseas (Nullable Trapping)
+    result["overseas_gross_cr"] = None
+    overseas_match = re.search(r'overseas\s*(?:gross)?\s*[:\-]?\s*₹?\s*([\d,.]+)\s*(?:Cr|cr)', page_text, re.I)
+    if overseas_match:
+         result["overseas_gross_cr"] = _parse_crore(overseas_match.group(1))
+         
+    # Total Shows (Nullable Trapping)
+    result["total_shows"] = None
+    shows_match = re.search(r'(?:across|in|with)\s*([\d,]+)\s*(?:shows|screenings)', page_text, re.I)
+    if shows_match:
+         try:
+             result["total_shows"] = int(shows_match.group(1).replace(",", "").strip())
+         except ValueError:
+             pass
 
     return result
 
 
 def scrape_daywise_collection(sacnilk_url: str) -> pd.DataFrame:
-    """Scrape day-wise collection table for a movie.
+    """Scrape day-wise collection from Sacnilk chart data.
 
     Returns DataFrame with columns:
-        day, date, daily_india_net_cr, cumulative_india_net_cr
+        day, daily_india_net_cr, cumulative_india_net_cr
     """
-    soup = _get_soup(sacnilk_url)
+    import re
+    html = str(_get_soup(sacnilk_url))
     rows = []
 
-    # Look for day-wise table
-    for table in soup.find_all("table"):
-        headers = [th.get_text(strip=True).lower() for th in table.find_all("th")]
-        if any("day" in h for h in headers) and any("collection" in h or "net" in h for h in headers):
-            for tr in table.find_all("tr")[1:]:
-                cells = tr.find_all("td")
-                if len(cells) < 3:
-                    continue
-                try:
-                    rows.append({
-                        "day":                      cells[0].get_text(strip=True),
-                        "daily_india_net_cr":        _parse_crore(cells[1].get_text()),
-                        "cumulative_india_net_cr":   _parse_crore(cells[2].get_text()),
-                    })
-                except (IndexError, AttributeError):
-                    continue
-            if rows:
-                break
+    labels_match = re.search(r'const labels\s*=\s*\[(.*?)\];', html)
+    net_match = re.search(r'const netData\s*=\s*\[(.*?)\];', html)
+    
+    if labels_match and net_match:
+        # Extract contents and strip quotes 
+        labels_raw = labels_match.group(1).split(',')
+        net_raw = net_match.group(1).split(',')
+        
+        cumulative = 0.0
+        for lbl, net_val in zip(labels_raw, net_raw):
+            day_str = lbl.replace('"', '').replace("'", "").strip()
+            try:
+                val = float(net_val.strip())
+                cumulative += val
+                rows.append({
+                    "day": day_str,
+                    "daily_india_net_cr": val,
+                    "cumulative_india_net_cr": round(cumulative, 2)
+                })
+            except ValueError:
+                continue
 
-    return pd.DataFrame(rows) if rows else pd.DataFrame()
+    return pd.DataFrame(rows)

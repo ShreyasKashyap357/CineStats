@@ -8,7 +8,7 @@ Scrapes:
   - Matches data back to episodes based on season/episode number.
 """
 import re
-import requests
+from curl_cffi import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 from typing import Optional, List, Dict, Any
@@ -25,11 +25,11 @@ def _get_soup(url: str) -> BeautifulSoup:
     if not _limiter.wait(rl.WIKIPEDIA["domain"]):
         raise FetchException(SOURCE_NAME, url, "Rate limit timeout")
 
-    headers = {"User-Agent": rl.WIKIPEDIA["user_agent"]}
     try:
-        resp = requests.get(url, headers=headers, timeout=15)
+        session = requests.Session(impersonate="chrome120")
+        resp = session.get(url, timeout=15)
         resp.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise FetchException(SOURCE_NAME, url, str(e))
 
     return BeautifulSoup(resp.text, "lxml")

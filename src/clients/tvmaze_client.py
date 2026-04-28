@@ -8,7 +8,7 @@ Provides:
   - Runtime, status, premier date, network
   - Rate Limits: 20 req/10sec
 """
-import requests
+from curl_cffi import requests
 from typing import Optional, Dict, Any, List
 
 from src.rate_limiter import RateLimiter, FetchException
@@ -26,13 +26,14 @@ def _api_get(endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
 
     url = f"{_BASE}{endpoint}"
     try:
-        resp = requests.get(url, params=params, timeout=15)
-        # TVMaze returns 404 for missing shows/episodes, which shouldn't always throw a blanket FetchException
+        session = requests.Session(impersonate="chrome120")
+        resp = session.get(url, params=params, timeout=15)
+        # TVMaze returns 404 for missing shows/episodes
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
         return resp.json()
-    except requests.RequestException as e:
+    except Exception as e:
         raise FetchException(SOURCE_NAME, endpoint, str(e))
 
 

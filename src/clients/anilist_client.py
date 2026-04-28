@@ -7,7 +7,7 @@ Provides:
   - AniList ID, scores, popularity
   - Rate Limits: 90 req/min
 """
-import requests
+from curl_cffi import requests
 from typing import Optional, Dict, Any, List
 
 from src.rate_limiter import RateLimiter, FetchException
@@ -44,7 +44,8 @@ def _graphql_request(variables: Dict[str, Any]) -> Dict[str, Any]:
         raise FetchException(SOURCE_NAME, "graphql", "Rate limit timeout")
 
     try:
-        resp = requests.post(
+        session = requests.Session(impersonate="chrome120")
+        resp = session.post(
             _BASE,
             json={"query": _ANIME_QUERY, "variables": variables},
             timeout=15
@@ -52,7 +53,7 @@ def _graphql_request(variables: Dict[str, Any]) -> Dict[str, Any]:
         resp.raise_for_status()
         data = resp.json().get("data", {}).get("Media")
         return data if data else {}
-    except requests.RequestException as e:
+    except Exception as e:
         raise FetchException(SOURCE_NAME, "graphql", str(e))
 
 

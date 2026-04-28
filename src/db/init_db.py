@@ -44,9 +44,37 @@ def _create_tables(conn: sqlite3.Connection):
             days_in_release     INTEGER,
             runtime_mins        INTEGER,
             tmdb_id             INTEGER,
+            bom_id              TEXT,
+            sacnilk_id          TEXT,
+            total_shows_sacnilk INTEGER,
+            overseas_gross_cr   REAL,
             source              TEXT,
             match_confidence    REAL,
             last_updated        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Movie Regional Rollout (BOM)
+        CREATE TABLE IF NOT EXISTS movie_rollout (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            movie_id            INTEGER REFERENCES movies(id),
+            country_name        TEXT NOT NULL,
+            region              TEXT,
+            gross_usd           REAL,
+            opening_usd         REAL,
+            release_date        DATE,
+            source_url          TEXT,
+            UNIQUE(movie_id, country_name)
+        );
+
+        -- Scrape Jobs Queue
+        CREATE TABLE IF NOT EXISTS scrape_jobs (
+            id                  TEXT PRIMARY KEY,
+            status              TEXT NOT NULL,
+            module              TEXT NOT NULL,
+            progress_pct        INTEGER DEFAULT 0,
+            message             TEXT,
+            created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
         -- Franchises (3-level hierarchy via self-reference)
@@ -283,12 +311,141 @@ def init_db(db_path: str = DB_PATH):
         _create_tables(conn)
 
         current = _get_current_version(conn)
-        if current < SCHEMA_VERSION:
-            _record_version(conn, SCHEMA_VERSION,
-                          f"v{SCHEMA_VERSION}: Initial schema — all 12 tables")
-            print(f"[CineStats] Schema v{SCHEMA_VERSION} applied.")
-        else:
-            print(f"[CineStats] Schema up to date (v{current}).")
+        
+        # Apply v1 Migration
+        if current < 1:
+            _record_version(conn, 1, "v1: Initial schema — all 12 tables")
+            print("[CineStats] Schema v1 applied.")
+            current = 1
+            
+        # Apply v2 Migration
+        if current < 2:
+            print("[CineStats] Applying Schema v2 migrations...")
+            try:
+                conn.execute("ALTER TABLE movies ADD COLUMN bom_id TEXT")
+                conn.execute("ALTER TABLE movies ADD COLUMN sacnilk_id TEXT")
+                conn.execute("ALTER TABLE movies ADD COLUMN total_shows_sacnilk INTEGER")
+                conn.execute("ALTER TABLE movies ADD COLUMN overseas_gross_cr   REAL")
+                conn.execute("ALTER TABLE movie_rollout ADD COLUMN source_url TEXT")
+            except sqlite3.OperationalError as e:
+                pass
+                
+        # Apply v3 Migration
+        if current < 3:
+            print("[CineStats] Applying Schema v3 migrations...")
+            try:
+                conn.execute("ALTER TABLE movie_rollout ADD COLUMN source_url TEXT")
+            except sqlite3.OperationalError:
+                pass
+                
+        # Apply v4 Migration
+        if current < 4:
+            print("[CineStats] Applying Schema v4 migrations (Records & Franchises)...")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS franchises (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name        TEXT NOT NULL,
+                    type        TEXT NOT NULL, -- 'brand', 'franchise', 'genre'
+                    url         TEXT UNIQUE
+                );
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS movie_franchises (
+                    movie_id        INTEGER REFERENCES movies(id),
+                    franchise_id    INTEGER REFERENCES franchises(id),
+                    UNIQUE(movie_id, franchise_id)
+                );
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS records (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title       TEXT NOT NULL,
+                    category    TEXT,
+                    source      TEXT,
+                    url         TEXT UNIQUE
+                );
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS record_entries (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    record_id       INTEGER REFERENCES records(id),
+                    rank            INTEGER,
+                    movie_title     TEXT,
+                    primary_value   TEXT,
+                    metadata_json   TEXT,
+                    UNIQUE(record_id, rank, movie_title)
+                );
+            """)
+                
+            _record_version(conn, 4, "v4: Added franchises, movie_franchises, records, and record_entries tables")
+            print("[CineStats] Schema v4 applied.")
+            current = 4
+
+        if current < 5:
+            # v5: Add source_url to movie_rollout if missing
+            try:
+                conn.execute("ALTER TABLE movie_rollout ADD COLUMN source_url TEXT;")
+            except sqlite3.OperationalError:
+                pass # Column already exists
+                
+            _record_version(conn, 5, "v5: Added source_url to movie_rollout")
+            print("[CineStats] Schema v5 applied.")
+            current = 5
+
+        if current < 6:
+            # v6: Add anime_arcs, deep metadata, and fix franchises
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS anime_arcs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    anime_id INTEGER REFERENCES anime(id) ON DELETE CASCADE,
+                    arc_name TEXT NOT NULL,
+                    episode_start INTEGER NOT NULL,
+                    episode_end INTEGER NOT NULL,
+                    source_chapter_start INTEGER,
+                    source_chapter_end INTEGER
+                );
+            """)
+            
+            # Movies metadata
+            for col in ["director", "producer", "studio", "cast_json", "poster_url"]:
+                try: conn.execute(f"ALTER TABLE movies ADD COLUMN {col} TEXT;")
+                except sqlite3.OperationalError: pass
+                
+            # TV metadata
+            for col in ["director", "producer", "studio", "cast_json"]:
+                try: conn.execute(f"ALTER TABLE tv_series ADD COLUMN {col} TEXT;")
+                except sqlite3.OperationalError: pass
+                
+            # Franchises fixes
+            for col in ["type", "url", "source"]:
+                try: conn.execute(f"ALTER TABLE franchises ADD COLUMN {col} TEXT;")
+                except sqlite3.OperationalError: pass
+
+            _record_version(conn, 6, "v6: Added anime_arcs, deep metadata, and franchises fixes")
+            print("[CineStats] Schema v6 applied.")
+            current = 6
+
+        if current < 7:
+            # v7: Add UNIQUE index on franchises.url, poster_url to tv_series
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_franchises_url ON franchises(url) WHERE url IS NOT NULL;")
+            try: conn.execute("ALTER TABLE tv_series ADD COLUMN poster_url TEXT;")
+            except sqlite3.OperationalError: pass
+            
+            _record_version(conn, 7, "v7: franchises.url UNIQUE index, tv_series.poster_url")
+            print("[CineStats] Schema v7 applied.")
+            current = 7
+
+        if current < 8:
+            # v8: Add overview
+            for t in ["movies", "tv_series", "anime"]:
+                try: conn.execute(f"ALTER TABLE {t} ADD COLUMN overview TEXT;")
+                except sqlite3.OperationalError: pass
+            
+            _record_version(conn, 8, "v8: Added overview to media tables")
+            print("[CineStats] Schema v8 applied.")
+            current = 8
+
+        print(f"[CineStats] Schema up to date (v{current}).")
 
         conn.commit()
     finally:

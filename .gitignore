@@ -35,3 +35,22 @@ desktop.ini
 
 # PDF generator (utility, not part of app)
 generate_pdf.py
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Logs
+logs/
+*.log
+
+# Temp directories
+temp/
+
+# IDE-specific
+.agents/
+.windsurfrules
+
+# Project documents (keep PDFs if needed)
+# CineStats_Project_Document.pdf
+# CineStats_v1.0_Project_Specification.pdf

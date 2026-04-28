@@ -7,7 +7,7 @@ Provides:
   - MAL ID, scores, rank, popularity, members, demographic, genre, studio
   - Jikan Rate Limits: 3 req/sec, 60 req/min (Strictly enforced)
 """
-import requests
+from curl_cffi import requests
 import time
 from typing import Optional, Dict, Any, List
 
@@ -26,15 +26,16 @@ def _api_get(endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str
 
     url = f"{_BASE}{endpoint}"
     try:
-        resp = requests.get(url, params=params, timeout=15)
+        session = requests.Session(impersonate="chrome120")
+        resp = session.get(url, params=params, timeout=15)
         # Jikan might return 429 even with our limiter if global limits hit
         if resp.status_code == 429:
             time.sleep(2) # Backoff and retry once
-            resp = requests.get(url, params=params, timeout=15)
+            resp = session.get(url, params=params, timeout=15)
             
         resp.raise_for_status()
         return resp.json().get("data", {})
-    except requests.RequestException as e:
+    except Exception as e:
         raise FetchException(SOURCE_NAME, endpoint, str(e))
 
 
